@@ -22,7 +22,7 @@ SELECT
           SELECT 1
             FROM TSIPAR PAR
            WHERE PAR.CHAVE = 'USUPRIORPCFI'
-             AND ',' + REPLACE(ISNULL(PAR.TEXTO, ''), ' ', '') + ',' LIKE '%,' + CONVERT(VARCHAR(20), LOGADO.CODUSU) + ',%'
+             AND ',' + REPLACE(ISNULL(CONVERT(VARCHAR(MAX), PAR.TEXTO), ''), ' ', '') + ',' LIKE '%,' + CONVERT(VARCHAR(20), LOGADO.CODUSU) + ',%'
       ) THEN 'S' ELSE 'N' END AS PODEPRIORIDADE
     , CASE WHEN CFG.NUCONFIG IS NOT NULL
               AND ISNULL(CFG.PERMQUAL, 'N') = 'N'
