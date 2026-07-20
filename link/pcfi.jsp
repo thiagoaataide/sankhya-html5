@@ -86,6 +86,17 @@
 <div id="loading" class="loading hidden" hidden><div class="spinner"></div><p id="loadingText">Carregando...</p></div>
 <div id="toast" class="toast hidden" role="status" hidden></div>
 
+<div id="modalFiscal" class="modal-fiscal hidden" role="dialog" aria-modal="true" aria-labelledby="modalFiscalTitulo" hidden>
+    <div class="modal-fiscal-card">
+        <h2 id="modalFiscalTitulo">Análise fiscal</h2>
+        <p>Selecione o resultado da análise desta PCFI.</p>
+        <div class="modal-fiscal-actions">
+            <button id="btnFiscalAprovar" class="btn btn-primary" type="button">Aprovar</button>
+            <button id="btnFiscalNegar" class="btn btn-secondary" type="button">Negar</button>
+            <button id="btnFiscalCancelar" class="btn btn-ghost" type="button">Realizar depois</button>
+        </div>
+    </div>
+</div>
 <div id="data-root" hidden aria-hidden="true">
     <div id="data-pedidos">
         <c:forEach items="${pcfiPedidosApp.rows}" var="row">
