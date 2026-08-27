@@ -8,7 +8,7 @@ vez, valide o resultado e crie um commit atômico por task. A revisão final com
 
 **Spec**: `.specs/features/evolucao-ui-pcfi-multidispositivo/spec.md`
 **Design**: `.specs/features/evolucao-ui-pcfi-multidispositivo/design.md`
-**Status**: Phase 2 complete — T1 through T5 complete; runtime manual validation pending
+**Status**: Phase 3 complete — T1 through T9 complete; visual runtime validation pending
 
 ## Test Coverage Matrix
 
@@ -244,12 +244,12 @@ foco visível, tipografia e redução de movimento.
 
 **Done when**:
 
-- [ ] O CSS deixa de ficar concentrado em linhas minificadas difíceis de revisar.
-- [ ] A UI possui escala tipográfica e espaçamento coerentes.
-- [ ] Todos os controles têm estado `:focus-visible` perceptível.
-- [ ] O spinner respeita `prefers-reduced-motion`.
-- [ ] Status não depende apenas da cor e mantém contraste adequado.
-- [ ] Não há `transition: all` ou remoção de outline sem substituição.
+- [x] O CSS deixa de ficar concentrado em linhas minificadas difíceis de revisar.
+- [x] A UI possui escala tipográfica e espaçamento coerentes.
+- [x] Todos os controles têm estado `:focus-visible` perceptível.
+- [x] O spinner respeita `prefers-reduced-motion`.
+- [x] Status não depende apenas da cor e mantém contraste adequado.
+- [x] Não há `transition: all` ou remoção de outline sem substituição.
 
 **Tests**: none — inspeção visual manual
 **Gate**: full
@@ -272,16 +272,16 @@ ações e áreas de toque para os três contextos.
 
 **Done when**:
 
-- [ ] Em 360x800, o formulário usa uma coluna e não cria rolagem horizontal.
-- [ ] Em 768x1024, os grupos e botões permanecem legíveis e alcançáveis.
-- [ ] Em 1440x900, a tabela usa o espaço sem esticar conteúdo de forma
+- [x] Em 360x800, o formulário usa uma coluna e não cria rolagem horizontal.
+- [x] Em 768x1024, os grupos e botões permanecem legíveis e alcançáveis.
+- [x] Em 1440x900, a tabela usa o espaço sem esticar conteúdo de forma
       desproporcional.
-- [ ] A tabela mantém rolagem controlada quando necessário e preserva a ação
+- [x] A tabela mantém rolagem controlada quando necessário e preserva a ação
       principal.
-- [ ] Subformulários de lote e patrimônio empilham seus campos em telas
+- [x] Subformulários de lote e patrimônio empilham seus campos em telas
       estreitas.
-- [ ] Botões e controles têm área de toque mínima adequada.
-- [ ] Ações inferiores não ficam cortadas em retrato ou paisagem.
+- [x] Botões e controles têm área de toque mínima adequada.
+- [x] Ações inferiores não ficam cortadas em retrato ou paisagem.
 
 **Tests**: none — inspeção visual manual nos três viewports
 **Gate**: full
@@ -332,13 +332,13 @@ destacando etapa, prioridade, status e próxima ação.
 
 **Done when**:
 
-- [ ] A etapa ativa é mais evidente que elementos decorativos secundários.
-- [ ] Os indicadores de resumo não formam uma grade visual repetitiva sem
+- [x] A etapa ativa é mais evidente que elementos decorativos secundários.
+- [x] Os indicadores de resumo não formam uma grade visual repetitiva sem
       hierarquia.
-- [ ] Estados de prioridade, qualidade, fiscal e negação têm texto e tratamento
+- [x] Estados de prioridade, qualidade, fiscal e negação têm texto e tratamento
       visual consistente.
-- [ ] A próxima ação fica evidente em cada view.
-- [ ] A direção visual funciona nos três breakpoints.
+- [x] A próxima ação fica evidente em cada view.
+- [x] A direção visual funciona nos três breakpoints.
 
 **Tests**: none — inspeção visual manual
 **Gate**: full
