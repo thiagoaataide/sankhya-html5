@@ -16,7 +16,6 @@
 <snk:load>
 <jsp:include page="dados.jsp" />
 <div id="app" class="app-shell">
-    <a class="skip-link" href="#main-content">Pular para o conteúdo principal</a>
     <header class="topbar">
         <div>
             <p class="eyebrow">PCFI</p>
@@ -28,14 +27,6 @@
             <button id="btnAtualizar" class="btn btn-secondary" type="button">Atualizar</button>
         </div>
     </header>
-
-    <nav class="flow-steps" aria-label="Etapas da conferência">
-        <ol>
-            <li class="flow-step is-active" aria-current="step"><span>1</span>Pedidos</li>
-            <li class="flow-step"><span>2</span>PCFIs</li>
-            <li class="flow-step"><span>3</span>Conferência</li>
-        </ol>
-    </nav>
 
     <main id="main-content">
         <section id="viewLista" class="view">
