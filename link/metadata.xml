@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<metadata>
+  <exportInfo>
+    <exportTime>17/07/2026 15:20:17</exportTime>
+    <systemVersion>4.35b667</systemVersion>
+    <systemCharSet>ISO-8859-1</systemCharSet>
+    <dbMetadata>
+      <dbUser>sankhya</dbUser>
+      <urlConnection><![CDATA[jdbc:jtds:sqlserver://192.168.159.6:1433;DatabaseName=SANKHYA_TESTE;useLOBs=false;appName=SANKHYAW]]></urlConnection>
+      <jdbcDriver><![CDATA[jTDS Type 4 JDBC Driver for MS SQL Server and Sybase 1.3.1]]></jdbcDriver>
+      <DBMS><![CDATA[Microsoft SQL Server - 15.00.2000]]></DBMS>
+    </dbMetadata>
+  </exportInfo>
+  <instances>
+    <instance name="AD_PCFICFG" isUpdate="false">
+      <instanceDescription><![CDATA[Configuração do PCFI por Centro de Resultado]]></instanceDescription>
+      <tableInfo name="AD_PCFICFG" sequenceType="A" sequenceField="NUCONFIG">
+        <category><![CDATA[PCFI]]></category>
+        <tableDescription><![CDATA[Configuração do PCFI por Centro de Resultado]]></tableDescription>
+        <primaryKey>
+          <NUCONFIG />
+        </primaryKey>
+      </tableInfo>
+      <fields>
+        <field name="NUCONFIG" systemField="N" dataType="I" presentationType="P" calculated="N" allowSearch="S" allowDefault="N" visibleOnSearch="S" allowNull="N" size="10">
+          <description><![CDATA[Núm. Configuração]]></description>
+        </field>
+        <field name="CODCENCUS" systemField="N" dataType="I" presentationType="P" calculated="N" allowSearch="S" allowDefault="S" visibleOnSearch="S" allowNull="N" size="10">
+          <description><![CDATA[Centro de Resultado]]></description>
+        </field>
+        <field name="QUALPELCONF" systemField="N" dataType="S" presentationType="O" calculated="N" allowSearch="S" allowDefault="S" visibleOnSearch="S" allowNull="N">
+          <description><![CDATA[Conferente Pode Executar Qualidade]]></description>
+          <expression><![CDATA[return $valorCampo == null ? "N" : $valorCampo;]]></expression>
+          <options>
+            <option value="S"><![CDATA[Sim]]></option>
+            <option value="N" default="S"><![CDATA[Não]]></option>
+          </options>
+        </field>
+        <field name="ATIVO" systemField="N" dataType="S" presentationType="O" calculated="N" allowSearch="S" allowDefault="S" visibleOnSearch="S" allowNull="N">
+          <description><![CDATA[Ativo]]></description>
+          <expression><![CDATA[return $valorCampo == null ? "S" : $valorCampo;]]></expression>
+          <options>
+            <option value="S" default="S"><![CDATA[Sim]]></option>
+            <option value="N"><![CDATA[Não]]></option>
+          </options>
+        </field>
+        <field name="CODGRUPOQTDE" systemField="N" dataType="I" presentationType="P" calculated="N" allowSearch="S" allowDefault="S" visibleOnSearch="S" allowNull="S" size="5">
+          <description><![CDATA[Grupo da Conferência Quantitativa]]></description>
+        </field>
+        <field name="CODGRUPOQUAL" systemField="N" dataType="I" presentationType="P" calculated="N" allowSearch="S" allowDefault="S" visibleOnSearch="S" allowNull="S" size="5">
+          <description><![CDATA[Grupo da Conferência Qualitativa]]></description>
+        </field>
+        <field name="CODGRUPOFISC" systemField="N" dataType="I" presentationType="P" calculated="N" allowSearch="S" allowDefault="S" visibleOnSearch="S" allowNull="S" size="5">
+          <description><![CDATA[Grupo da Análise Fiscal]]></description>
+        </field>
+        <field name="OBSERVACAO" systemField="N" dataType="C" presentationType="P" calculated="N" allowSearch="N" allowDefault="S" visibleOnSearch="S" allowNull="S">
+          <description><![CDATA[Observação]]></description>
+        </field>
+        <field name="CODTIPOPER" systemField="N" dataType="I" presentationType="P" calculated="N" allowSearch="S" allowDefault="S" visibleOnSearch="S" allowNull="S" size="5">
+          <description><![CDATA[Cód.Tipo Operação]]></description>
+        </field>
+        <field name="PERMQUAL" systemField="N" dataType="S" presentationType="O" calculated="N" allowSearch="N" allowDefault="S" visibleOnSearch="S" allowNull="S">
+          <description><![CDATA[Confêre apenas qualidade]]></description>
+          <options>
+            <option value="S"><![CDATA[Sim]]></option>
+            <option value="N" default="S"><![CDATA[Não]]></option>
+          </options>
+        </field>
+      </fields>
+      <relationShip>
+        <relation entityName="CentroResultado" type="I" insert="N" update="N" remove="N">
+          <targetInfo systemInstance="S" tableName="TSICUS" />
+          <fields>
+            <field localName="CODCENCUS" targetName="CODCENCUS" />
+          </fields>
+        </relation>
+        <relation entityName="TipoOperacao" type="I" insert="N" update="N" remove="N">
+          <targetInfo systemInstance="S" tableName="TGFTOP" />
+          <expression><![CDATA[@ref-param[force-one-to-one=true]]]></expression>
+          <fields>
+            <field localName="CODTIPOPER" targetName="CODTIPOPER" />
+          </fields>
+        </relation>
+        <relation entityName="GrupoUsuario" type="I" insert="N" update="N" remove="N">
+          <targetInfo systemInstance="S" tableName="TSIGRU" />
+          <fields>
+            <field localName="CODGRUPOQTDE" targetName="CODGRUPO" />
+          </fields>
+        </relation>
+        <relation entityName="GrupoUsuario" type="I" insert="N" update="N" remove="N">
+          <targetInfo systemInstance="S" tableName="TSIGRU" />
+          <fields>
+            <field localName="CODGRUPOQUAL" targetName="CODGRUPO" />
+          </fields>
+        </relation>
+        <relation entityName="GrupoUsuario" type="I" insert="N" update="N" remove="N">
+          <targetInfo systemInstance="S" tableName="TSIGRU" />
+          <fields>
+            <field localName="CODGRUPOFISC" targetName="CODGRUPO" />
+          </fields>
+        </relation>
+        <relation entityName="AD_PCFICFGUSU" type="I" insert="N" update="N" remove="S">
+          <targetInfo systemInstance="N" tableName="AD_PCFICFGUSU" />
+          <fields>
+            <field localName="NUCONFIG" targetName="NUCONFIG" />
+          </fields>
+        </relation>
+      </relationShip>
+    </instance>
+    <instance name="AD_PCFICFGUSU" isUpdate="false">
+      <instanceDescription><![CDATA[Usuários Configuração]]></instanceDescription>
+      <tableInfo name="AD_PCFICFGUSU" sequenceType="M">
+        <tableDescription><![CDATA[Usuários Configuração]]></tableDescription>
+        <primaryKey>
+          <NUCONFIG />
+          <CODUSU />
+        </primaryKey>
+      </tableInfo>
+      <fields>
+        <field name="CODUSU" systemField="N" dataType="I" presentationType="P" calculated="N" allowSearch="S" allowDefault="S" visibleOnSearch="S" allowNull="N">
+          <description><![CDATA[Cód. usuário]]></description>
+        </field>
+        <field name="NUCONFIG" systemField="N" dataType="I" presentationType="P" calculated="N" allowSearch="S" allowDefault="N" visibleOnSearch="S" allowNull="N" size="10">
+          <description><![CDATA[Núm. Configuração]]></description>
+        </field>
+      </fields>
+    </instance>
+  </instances>
+</metadata>
+

@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gadget>
+    <prompt-parameters>
+        <parameter id="P_CODEMP" description="Empresa" metadata="multiList:Text"
+                   listType="sql" required="true" keep-last="true" keep-date="false"
+                   show-inactives="false" label="Empresa" order="0">
+            <expression type="SQL"><![CDATA[
+                SELECT CODEMP AS VALUE, NOMEFANTASIA AS LABEL
+                  FROM TSIEMP
+                 ORDER BY CODEMP
+            ]]></expression>
+        </parameter>
+        <parameter id="P_DTINI" description="Data inicial" metadata="date"
+                   required="true" keep-last="true" keep-date="false"
+                   show-inactives="false" label="Data inicial" order="1"/>
+        <parameter id="P_DTFIM" description="Data final" metadata="date"
+                   required="true" keep-last="true" keep-date="false"
+                   show-inactives="false" label="Data final" order="2"/>
+        <parameter id="P_CODPARC" description="Fornecedor"
+                   metadata="entity:ParceiroFornecedorCotacao@CODPARC"
+                   required="false" keep-last="true" keep-date="false"
+                   show-inactives="false" label="Fornecedor" order="3"/>
+        <parameter id="P_NUNOTAOC" description="Número único da OC" metadata="integer"
+                   required="false" keep-last="true" keep-date="false"
+                   show-inactives="false" label="Número único da OC" order="4"/>
+    </prompt-parameters>
+    <level id="lvl_pcfi" description="Conferência de Pedidos de Compra">
+        <container orientacao="V" tamanhoRelativo="100">
+            <container orientacao="V" tamanhoRelativo="100">
+                <html5component id="html5_pcfi" entryPoint="pcfi.jsp"/>
+            </container>
+        </container>
+    </level>
+</gadget>

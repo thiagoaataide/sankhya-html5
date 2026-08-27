@@ -1,0 +1,38 @@
+<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" isELIgnored="false" errorPage="erro.jsp" %>
+<%@ taglib uri="http://java.sun.com/jstl/core_rt" prefix="c" %>
+<%@ taglib prefix="snk" uri="/WEB-INF/tld/sankhyaUtil.tld" %>
+
+<snk:query var="faturamentoSc" dataSource="MGEDS">
+SELECT
+      AD_SKWOS.NUMOS
+    , AD_SKWOS.NUNOTAFAT AS NUNOTAPED
+    , AD_SKWOS.CODUSUVEND
+    , AD_SKWOS.APELIDO AS VENDEDOR
+    , AD_SKWOS.CODUSUEXEC
+    , AD_SKWOS.EXECUTANTE
+    , AD_SKWOS.CLASSIFICACAO
+    , AD_SKWOS.CODNAT
+    , AD_SKWOS.DESCRNAT
+    , AD_SKWOS.CODPARC
+    , TGFPAR.NOMEPARC
+    , AD_SKWOS.NUNOTA AS PEDIDO
+    , AD_SKWOS.TEMPGASTO
+    , AD_SKWOS.VALOR AS VLRTOT
+    , AD_SKWOS.VLRUNIT
+    , AD_SKWOS.FATURAR
+    , AD_SKWOS.AUTORIZADO
+    , VAR.NUNOTA AS NUNOTANF
+    , CASE WHEN AD_SKWOS.NUNOTAFAT IS NOT NULL THEN 'Sim' ELSE 'Não' END AS FATURADO
+    , AD_SKWOS.DHENTRADA
+    , AD_SKWOS.INICEXEC
+FROM AD_SKWOS
+INNER JOIN TGFPAR ON TGFPAR.CODPARC = AD_SKWOS.CODPARC
+LEFT JOIN VGFVARDIF VAR ON VAR.NUNOTAORIG = AD_SKWOS.NUNOTAFAT
+WHERE AD_SKWOS.DHENTRADA >= TO_DATE(SUBSTR('${P_DTINI}', 1, 10), 'YYYY-MM-DD')
+  AND AD_SKWOS.DHENTRADA < TO_DATE(SUBSTR('${P_DTFIM}', 1, 10), 'YYYY-MM-DD') + 1
+  AND (AD_SKWOS.CODPARC = :P_CODPARC OR :P_CODPARC IS NULL)
+  AND (AD_SKWOS.NUNOTA = :P_NUNOTAPED OR :P_NUNOTAPED IS NULL)
+ORDER BY AD_SKWOS.NUNOTA ASC, AD_SKWOS.NUMOS ASC
+</snk:query>
+
+<c:set scope="request" var="faturamentoScApp" value="${faturamentoSc}" />

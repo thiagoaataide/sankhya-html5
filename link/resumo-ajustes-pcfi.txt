@@ -1,0 +1,54 @@
+RESUMO DOS AJUSTES REALIZADOS — PCFI
+
+OBJETIVO
+
+Foram realizados ajustes no processo de conferência de pedidos de compra (PCFI) para tornar as etapas mais claras, controlar os acessos de acordo com a configuração de cada usuário e facilitar a identificação de situações prioritárias.
+
+CONTROLE DE ACESSO POR ETAPA
+
+- Quando o usuário estiver configurado para somente Qualidade, ele poderá executar exclusivamente essa etapa.
+- Quando a configuração permitir somente Quantidade, o usuário poderá realizar apenas a conferência quantitativa.
+- Quando a configuração permitir Quantidade e Qualidade, o usuário poderá realizar ambas as etapas.
+- As etapas não autorizadas não ficam disponíveis para abertura ou preenchimento pelo usuário.
+
+IDENTIFICAÇÃO VISUAL NO GRID
+
+- Verde: pedido com PCFI na etapa de Quantidade.
+- Azul: pedido com PCFI na etapa de Qualidade.
+- Amarelo: pedido com prioridade solicitada. Esta cor tem prioridade sobre as demais enquanto a PCFI não for concluída.
+- Fiscal: mantém o padrão visual já utilizado no layout.
+
+STATUS APRESENTADOS NO GRID
+
+- Aguardando Conferência: ainda não existe PCFI para a ordem de compra.
+- Aguardando Qualidade: existe PCFI com a conferência de Quantidade concluída.
+- Aguardando Fiscal: existe PCFI com a conferência de Qualidade concluída.
+- PCFI Parcial: a análise Fiscal foi concluída para um recebimento parcial.
+
+Quando a análise Fiscal for concluída para um recebimento completo, a ordem de compra deixa de ser exibida no grid de pendências.
+
+SOLICITAÇÃO DE PRIORIDADE
+
+- Apenas usuários previamente autorizados podem solicitar prioridade.
+- A autorização é controlada pela preferência USUPRIORPCFI, que contém os códigos dos usuários autorizados.
+- O botão de solicitação é apresentado somente no grid de PCFIs e apenas enquanto a PCFI estiver em andamento.
+- Antes de registrar a prioridade, o sistema solicita confirmação ao usuário.
+- Após a confirmação, a prioridade permanece registrada e visível para os demais usuários.
+- Não existe opção de cancelamento da prioridade.
+- A identificação amarela é removida quando a PCFI é concluída, inclusive quando houver reprovação na análise Fiscal.
+
+PROTEÇÃO DA QUANTIDADE RECEBIDA
+
+- A alteração da quantidade recebida é permitida somente na etapa de Quantidade.
+- Nas etapas de Qualidade e Fiscal, a quantidade continua visível, porém fica bloqueada para edição.
+- Informações de lote, matéria-prima ou patrimônio não podem ser registradas para itens sem quantidade recebida.
+
+DECISÃO NA ANÁLISE FISCAL
+
+- Aprovar: conclui a PCFI como aprovada para lançamento.
+- Negar: conclui a PCFI como não aprovada.
+- Realizar depois: fecha a janela sem salvar nenhuma alteração, permitindo que a análise seja retomada posteriormente.
+
+RESULTADO ESPERADO
+
+Com os ajustes, o processo de PCFI passa a apresentar maior clareza sobre a etapa de cada ordem de compra, melhor controle de permissões, identificação visual de prioridades e maior segurança durante o preenchimento e a decisão Fiscal.

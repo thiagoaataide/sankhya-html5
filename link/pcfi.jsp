@@ -86,6 +86,42 @@
 <div id="loading" class="loading hidden" hidden><div class="spinner"></div><p id="loadingText">Carregando...</p></div>
 <div id="toast" class="toast hidden" role="status" hidden></div>
 
+<div id="modalConfirmacao" class="modal-confirmacao hidden" role="dialog" aria-modal="true" aria-labelledby="modalConfirmacaoTitulo" aria-describedby="modalConfirmacaoMensagem" hidden>
+    <div class="modal-confirmacao-card" role="document">
+        <h2 id="modalConfirmacaoTitulo">Confirmar ação</h2>
+        <p id="modalConfirmacaoMensagem">Deseja continuar?</p>
+        <div class="modal-confirmacao-actions">
+            <button id="btnConfirmacaoCancelar" class="btn btn-ghost" type="button">Cancelar</button>
+            <button id="btnConfirmacaoConfirmar" class="btn btn-primary" type="button">Confirmar</button>
+        </div>
+    </div>
+</div>
+
+<div id="modalQualidade" class="modal-qualidade hidden" role="dialog" aria-modal="true" aria-labelledby="modalQualidadeTitulo" hidden>
+    <div class="modal-qualidade-card" role="document">
+        <h2 id="modalQualidadeTitulo">Finalizar conferência de qualidade</h2>
+        <p>Selecione o resultado. As aprovações seguem para a análise fiscal.</p>
+        <div class="modal-qualidade-actions">
+            <button id="btnQualidadeAprovar" class="btn btn-primary" type="button">Aprovado</button>
+            <button id="btnQualidadeRessalva" class="btn btn-secondary" type="button">Aprovado com ressalva</button>
+            <button id="btnQualidadeNegar" class="btn btn-danger" type="button">Negado</button>
+            <button id="btnQualidadeCancelar" class="btn btn-ghost" type="button">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<div id="modalCamera" class="modal-camera hidden" role="dialog" aria-modal="true" aria-labelledby="modalCameraTitulo" hidden>
+    <div class="modal-camera-card" role="document">
+        <h2 id="modalCameraTitulo">Capturar foto do item</h2>
+        <video id="cameraPreview" autoplay playsinline muted></video>
+        <p id="cameraMensagem">Posicione a câmera e capture a foto.</p>
+        <div class="modal-camera-actions">
+            <button id="btnCapturarFoto" class="btn btn-primary" type="button">Capturar foto</button>
+            <button id="btnCancelarCamera" class="btn btn-ghost" type="button">Cancelar</button>
+        </div>
+    </div>
+</div>
+
 <div id="modalFiscal" class="modal-fiscal hidden" role="dialog" aria-modal="true" aria-labelledby="modalFiscalTitulo" hidden>
     <div class="modal-fiscal-card">
         <h2 id="modalFiscalTitulo">Análise fiscal</h2>

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gadget>
+    <prompt-parameters>
+        <parameter id="P_DTINI" description="Data inicial" metadata="date"
+                   required="true" keep-last="true" keep-date="false"
+                   show-inactives="false" label="Data inicial" order="0"/>
+        <parameter id="P_DTFIM" description="Data final" metadata="date"
+                   required="true" keep-last="true" keep-date="false"
+                   show-inactives="false" label="Data final" order="1"/>
+        <parameter id="P_CODPARC" description="Parceiro"
+                   metadata="entity:Parceiro@CODPARC" required="false"
+                   keep-last="true" keep-date="false" show-inactives="false"
+                   label="Parceiro" order="2"/>
+        <parameter id="P_NUNOTAPED" description="Pedido" metadata="integer"
+                   required="false" keep-last="true" keep-date="false"
+                   show-inactives="false" label="Pedido" order="3"/>
+    </prompt-parameters>
+    <level id="lvl_faturamento_sc" description="Faturamento SC">
+        <container orientacao="V" tamanhoRelativo="100">
+            <container orientacao="V" tamanhoRelativo="100">
+                <html5component id="html5_faturamento_sc" entryPoint="faturamento_SC.jsp"/>
+            </container>
+        </container>
+    </level>
+</gadget>
