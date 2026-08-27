@@ -130,4 +130,58 @@
     }catch(e){toast('Falha no salvamento: '+(e.message||e)+'. Consulte o PCFI antes de tentar novamente.',true)}finally{loading(false);$('btnSalvar').disabled=false}
   }
   $('btnAtualizar').onclick=carregarPedidos;$('btnVoltar').onclick=voltar;$('btnVoltarPcfis').onclick=voltar;$('btnCancelar').onclick=function(){abrirPedido(state.pedido)};$('btnSalvar').onclick=function(){salvar()};$('btnFiscalAprovar').onclick=function(){decidirFiscal(true)};$('btnFiscalNegar').onclick=function(){decidirFiscal(false)};$('btnFiscalCancelar').onclick=fecharModalFiscal;$('btnQualidadeAprovar').onclick=function(){fecharModalQualidade();salvar('A')};$('btnQualidadeRessalva').onclick=function(){fecharModalQualidade();salvar('R')};$('btnQualidadeNegar').onclick=function(){fecharModalQualidade();salvar('N')};$('btnQualidadeCancelar').onclick=fecharModalQualidade;$('btnCapturarFoto').onclick=capturarFoto;$('btnCancelarCamera').onclick=fecharCamera;$('btnPaginaAnterior').onclick=function(){if(state.paginaPedidos>1){state.paginaPedidos--;renderPedidos(state.pedidosFiltrados)}};$('btnProximaPagina').onclick=function(){var totalPaginas=Math.ceil(state.pedidosFiltrados.length/state.pedidosPorPagina);if(state.paginaPedidos<totalPaginas){state.paginaPedidos++;renderPedidos(state.pedidosFiltrados)}};$('buscaPedidos').oninput=function(){var q=this.value.toLowerCase();state.paginaPedidos=1;state.pedidosFiltrados=state.pedidos.filter(function(r){return [r.NUNOTA,r.NUMNOTA,r.CODPARC,r.NOMEPARC,r.CODCENCUS].join(' ').toLowerCase().indexOf(q)>=0});renderPedidos(state.pedidosFiltrados)};carregarPedidos();
+  function limparErros(){
+    Array.prototype.forEach.call(document.querySelectorAll('.field-error'),function(el){if(el.parentNode)el.parentNode.removeChild(el)});
+    Array.prototype.forEach.call(document.querySelectorAll('[aria-invalid="true"]'),function(el){el.removeAttribute('aria-invalid');el.removeAttribute('aria-describedby')})
+  }
+  function criarErro(message,selector){return {message:message,selector:selector,toString:function(){return this.message}}}
+  function fieldSelector(i,key){return '.item-card[data-item="'+i+'"] [data-k="'+key+'"]'}
+  function loteSelector(i,j,key){return '.item-card[data-item="'+i+'"] .lotes-rows .subrow[data-j="'+j+'"] [data-lk="'+key+'"]'}
+  function patrimonioSelector(i,j){return '.item-card[data-item="'+i+'"] .pat-rows .subrow[data-j="'+j+'"] [data-pk="NROPATRIMONIO"]'}
+  function apresentarErros(errors){
+    var primeiro=null,descricoes={};
+    errors.forEach(function(error,index){
+      var target=document.querySelector(error.selector);if(!target)return;
+      if(!target.id)target.id='pcfi-error-target-'+index;
+      target.setAttribute('aria-invalid','true');
+      var details=target.closest('details');if(details)details.open=true;
+      var descId=target.id+'-error-'+index,desc=document.createElement('span');desc.id=descId;desc.className='field-error';desc.setAttribute('role','alert');desc.textContent=error.message;
+      var holder=target.closest('.field')||target.closest('.checkline')||target.parentNode;if(holder)holder.appendChild(desc);
+      descricoes[target.id]=(descricoes[target.id]||[]).concat(descId);if(!primeiro)primeiro=target
+    });
+    Object.keys(descricoes).forEach(function(id){var target=document.getElementById(id);if(target)target.setAttribute('aria-describedby',descricoes[id].join(' '))});
+    if(primeiro&&primeiro.focus)primeiro.focus()
+  }
+  function validarContextual(){
+    limparErros();
+    var errors=[],add=function(message,selector){errors.push(criarErro(message,selector))},ativos=state.itens.filter(function(it){return n(it.QTDRECEBIDA)>0}),quality=state.etapa==='QUAL';
+    if(!$('numNotaNf').value.trim())add('Cabeçalho — número da nota fiscal: informe o número para continuar.','#numNotaNf');
+    if(!ativos.length)add('Itens — quantidade recebida: informe uma quantidade maior que zero em pelo menos um item.',state.itens.length?fieldSelector(0,'QTDRECEBIDA'):'#numNotaNf');
+    state.itens.forEach(function(it,i){if(quality&&n(it.QTDRECEBIDA)<=0&&(it.MATERIAPRIMA==='S'||it.BEM==='S'))add('Item '+it.SEQUENCIA+' — quantidade recebida: informe uma quantidade antes de adicionar lote ou patrimônio.',fieldSelector(i,'QTDRECEBIDA'))});
+    ativos.forEach(function(it){
+      var i=state.itens.indexOf(it);
+      if(state.etapa==='QTDE'&&n(it.QTDRECEBIDA)>n(it.QTDPENDENTE))add('Item '+it.SEQUENCIA+' — quantidade recebida: reduza o valor para no máximo '+fmt(it.QTDPENDENTE)+'.',fieldSelector(i,'QTDRECEBIDA'));
+      if(!quality)return;
+      if(it.IMPROPRIO==='S'&&n(it.QTDIMPROPRIA)<=0)add('Item '+it.SEQUENCIA+' — quantidade imprópria: informe um valor maior que zero.',fieldSelector(i,'QTDIMPROPRIA'));
+      if(it.IMPROPRIO==='S'&&n(it.QTDIMPROPRIA)>n(it.QTDRECEBIDA))add('Item '+it.SEQUENCIA+' — quantidade imprópria: informe um valor até a quantidade recebida.',fieldSelector(i,'QTDIMPROPRIA'));
+      if(it.MATERIAPRIMA==='S'){
+        if(!it.lotes.length)add('Item '+it.SEQUENCIA+' — lotes: adicione ao menos um lote.', '.item-card[data-item="'+i+'"] .add-lote');
+        var soma=0;it.lotes.forEach(function(l,j){soma+=n(l.QUANTIDADE);if(!String(l.NROLOTE||'').trim())add('Item '+it.SEQUENCIA+' — número do lote: informe o número do lote.',loteSelector(i,j,'NROLOTE'));if(n(l.QUANTIDADE)<=0)add('Item '+it.SEQUENCIA+' — quantidade do lote: informe um valor maior que zero.',loteSelector(i,j,'QUANTIDADE'));if(!l.DTFABRICACAO)add('Item '+it.SEQUENCIA+' — fabricação do lote: informe a data de fabricação.',loteSelector(i,j,'DTFABRICACAO'));if(!l.DTVALIDADE)add('Item '+it.SEQUENCIA+' — validade do lote: informe a data de validade.',loteSelector(i,j,'DTVALIDADE'));if(l.DTFABRICACAO&&l.DTVALIDADE&&l.DTVALIDADE<l.DTFABRICACAO)add('Item '+it.SEQUENCIA+' — validade do lote: informe uma data posterior à fabricação.',loteSelector(i,j,'DTVALIDADE'))});
+        if(Math.abs(soma-n(it.QTDRECEBIDA))>.0001)add('Item '+it.SEQUENCIA+' — lotes: ajuste a soma dos lotes para igualar a quantidade recebida.', '.item-card[data-item="'+i+'"] .lotes-rows [data-lk="QUANTIDADE"]')
+      }
+      if(it.BEM==='S'){
+        if(it.patrimonios.length!==n(it.QTDRECEBIDA))add('Item '+it.SEQUENCIA+' — patrimônios: informe um patrimônio por unidade recebida.',it.patrimonios.length?patrimonioSelector(i,0):'.item-card[data-item="'+i+'"] .add-pat');
+        it.patrimonios.forEach(function(p,j){if(!String(p.NROPATRIMONIO||'').trim())add('Item '+it.SEQUENCIA+' — número do patrimônio: informe o número do patrimônio.',patrimonioSelector(i,j))})
+      }
+    });
+    apresentarErros(errors);return {errors:errors,ativos:ativos}
+  }
+  function confirmarSaida(){return !state.alterado?Promise.resolve(true):confirmar('Descartar alterações','Existem dados preenchidos nesta conferência. Deseja sair e descartar as alterações?','Descartar alterações')}
+  async function voltarSeguro(){if(!await confirmarSaida())return;state.alterado=false;voltar()}
+  async function cancelarSeguro(){if(!await confirmarSaida())return;var pedido=state.pedido;state.alterado=false;abrirPedido(pedido)}
+  document.addEventListener('input',function(e){var el=e.target;if(!el||!el.closest||!el.closest('#viewConferencia'))return;if(el.tagName==='INPUT'||el.tagName==='SELECT'||el.tagName==='TEXTAREA')state.alterado=true});
+  document.addEventListener('change',function(e){var el=e.target;if(el&&el.closest&&el.closest('#viewConferencia'))state.alterado=true});
+  document.addEventListener('click',function(e){var el=e.target;if(!el||!el.closest||!el.closest('#viewConferencia'))return;if(el.id==='btnCapturarFoto'||el.closest('.add-lote,.add-pat,.remover-foto'))state.alterado=true});
+  $('btnVoltar').onclick=voltarSeguro;$('btnVoltarPcfis').onclick=voltarSeguro;$('btnCancelar').onclick=cancelarSeguro;
+  validar=validarContextual;
 })();
