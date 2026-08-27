@@ -8,7 +8,7 @@ vez, valide o resultado e crie um commit atômico por task. A revisão final com
 
 **Spec**: `.specs/features/evolucao-ui-pcfi-multidispositivo/spec.md`
 **Design**: `.specs/features/evolucao-ui-pcfi-multidispositivo/design.md`
-**Status**: Phase 1 complete — T1 and T2 complete; runtime manual validation pending
+**Status**: Phase 2 complete — T1 through T5 complete; runtime manual validation pending
 
 ## Test Coverage Matrix
 
@@ -156,14 +156,14 @@ preservar os valores de controles ao reabrir uma PCFI.
 
 **Done when**:
 
-- [ ] Campos dinâmicos recebem IDs estáveis e labels associadas.
-- [ ] Campos recebem `name`, `type`, `autocomplete`, `inputmode` e `required`
+- [x] Campos dinâmicos recebem IDs estáveis e labels associadas.
+- [x] Campos recebem `name`, `type`, `autocomplete`, `inputmode` e `required`
       conforme o caso.
-- [ ] Selects de embalagem e divergência refletem `EMBALAGEM` e `DIVERGENCIA`
+- [x] Selects de embalagem e divergência refletem `EMBALAGEM` e `DIVERGENCIA`
       salvos.
-- [ ] Campos numéricos mantêm limites, step e unidade visíveis.
-- [ ] Os bindings existentes continuam atualizando `state.itens`.
-- [ ] `node --check .\\link\\javascript\\script.js` passa.
+- [x] Campos numéricos mantêm limites, step e unidade visíveis.
+- [x] Os bindings existentes continuam atualizando `state.itens`.
+- [x] `node --check .\\link\\javascript\\script.js` passa.
 
 **Tests**: none — manual Sankhya + sintaxe JavaScript
 **Gate**: quick + full
@@ -186,14 +186,14 @@ regras atuais de etapa.
 
 **Done when**:
 
-- [ ] Cada item apresenta um resumo claro de produto, pedido e saldo pendente.
-- [ ] Quantidade recebida permanece no primeiro nível da conferência.
-- [ ] Lotes, patrimônios e observações ficam agrupados e podem ser expandidos
+- [x] Cada item apresenta um resumo claro de produto, pedido e saldo pendente.
+- [x] Quantidade recebida permanece no primeiro nível da conferência.
+- [x] Lotes, patrimônios e observações ficam agrupados e podem ser expandidos
       quando não forem necessários.
-- [ ] A etapa de quantidade não exibe controles exclusivos da qualidade.
-- [ ] A etapa de qualidade exibe agrupamentos compreensíveis para cada decisão.
-- [ ] Adicionar/remover sublinhas não perde valores já digitados.
-- [ ] `node --check .\\link\\javascript\\script.js` passa.
+- [x] A etapa de quantidade não exibe controles exclusivos da qualidade.
+- [x] A etapa de qualidade exibe agrupamentos compreensíveis para cada decisão.
+- [x] Adicionar/remover sublinhas não perde valores já digitados.
+- [x] `node --check .\\link\\javascript\\script.js` passa.
 
 **Tests**: none — manual Sankhya + sintaxe JavaScript
 **Gate**: quick + full
@@ -215,14 +215,14 @@ saída quando houver dados alterados em memória.
 
 **Done when**:
 
-- [ ] Cada erro aplicável identifica item, campo e correção necessária.
-- [ ] Campos inválidos recebem `aria-invalid` e descrição associada.
-- [ ] O primeiro campo inválido recebe foco.
-- [ ] Os valores válidos permanecem preservados após erro.
-- [ ] Cancelar ou voltar com alterações solicita confirmação.
-- [ ] O toast continua disponível como resumo, sem substituir a indicação no
+- [x] Cada erro aplicável identifica item, campo e correção necessária.
+- [x] Campos inválidos recebem `aria-invalid` e descrição associada.
+- [x] O primeiro campo inválido recebe foco.
+- [x] Os valores válidos permanecem preservados após erro.
+- [x] Cancelar ou voltar com alterações solicita confirmação.
+- [x] O toast continua disponível como resumo, sem substituir a indicação no
       campo.
-- [ ] `node --check .\\link\\javascript\\script.js` passa.
+- [x] `node --check .\\link\\javascript\\script.js` passa.
 
 **Tests**: none — manual Sankhya + sintaxe JavaScript
 **Gate**: quick + full

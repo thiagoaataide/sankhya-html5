@@ -193,16 +193,16 @@ identificar etapa, status e próxima ação sem consultar o código.
 | PCFI-UI-02 | P1: Navegar pelos pedidos | Phase 1 / T2 | Implemented |
 | PCFI-UI-03 | P1: Navegar pelos pedidos | Phase 1 / T2 | Implemented |
 | PCFI-UI-04 | P1: Navegar pelos pedidos | Phase 1 / T2 | Implemented |
-| PCFI-UI-05 | P1: Preencher conferência | Phase 1 / T1 | In progress |
-| PCFI-UI-06 | P1: Preencher conferência | Tasks | Pending |
-| PCFI-UI-07 | P1: Preencher conferência | Tasks | Pending |
-| PCFI-UI-08 | P1: Usar nos três contextos | Phase 1 / T1 | In progress |
+| PCFI-UI-05 | P1: Preencher conferência | Phase 1 / T1 + Phase 2 / T4 | Implemented |
+| PCFI-UI-06 | P1: Preencher conferência | Phase 2 / T4 | Implemented |
+| PCFI-UI-07 | P1: Preencher conferência | Phase 2 / T3 | Implemented |
+| PCFI-UI-08 | P1: Usar nos três contextos | Phase 1 / T1 + Phase 2 / T3/T5 | Implemented |
 | PCFI-UI-09 | P1: Usar nos três contextos | Tasks | Pending |
 | PCFI-UI-10 | P1: Usar nos três contextos | Tasks | Pending |
 | PCFI-UI-11 | P2: Feedback acessível | Tasks | Pending |
-| PCFI-UI-12 | P2: Feedback acessível | Tasks | Pending |
+| PCFI-UI-12 | P2: Feedback acessível | Phase 2 / T5 | Implemented |
 | PCFI-UI-13 | P2: Feedback acessível | Phase 1 / T1 | In progress |
-| PCFI-UI-14 | P2: Feedback acessível | Tasks | Pending |
+| PCFI-UI-14 | P2: Feedback acessível | Phase 2 / T5 | Implemented |
 | PCFI-UI-15 | P2: Direção visual | Phase 1 / T1 | In progress |
 | PCFI-UI-16 | P2: Direção visual | Tasks | Pending |
 
