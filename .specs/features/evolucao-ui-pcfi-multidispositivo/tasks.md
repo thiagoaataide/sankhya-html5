@@ -8,7 +8,7 @@ vez, valide o resultado e crie um commit atômico por task. A revisão final com
 
 **Spec**: `.specs/features/evolucao-ui-pcfi-multidispositivo/spec.md`
 **Design**: `.specs/features/evolucao-ui-pcfi-multidispositivo/design.md`
-**Status**: Phase 1 in progress — T1 complete, T2 pending
+**Status**: Phase 1 complete — T1 and T2 complete; runtime manual validation pending
 
 ## Test Coverage Matrix
 
@@ -108,7 +108,7 @@ labels, fieldsets, estados e contratos semânticos dos modais.
 
 **Tests**: none — manual Sankhya
 **Gate**: full
-**Commit**: `feat(pcfi-ui): estruturar shell e etapas do fluxo` (pending hash)
+**Commit**: `feat(pcfi-ui): estruturar shell e etapas do fluxo` (`732a924`)
 
 ### T2: Substituir a abertura por duplo clique por ações explícitas
 
@@ -119,6 +119,7 @@ mouse, toque e teclado e melhorar busca e estado vazio.
 **Reuses**: `renderPedidos`, paginação, `esc`, `state.pedidosFiltrados` e
 `abrirPedido`.
 **Requirement**: PCFI-UI-01, PCFI-UI-02, PCFI-UI-03, PCFI-UI-04
+**Status**: Complete
 
 **Tools**:
 
@@ -127,17 +128,17 @@ mouse, toque e teclado e melhorar busca e estado vazio.
 
 **Done when**:
 
-- [ ] A coluna de conferência renderiza um botão ou link explícito para abrir o
+- [x] A coluna de conferência renderiza um botão ou link explícito para abrir o
       pedido.
-- [ ] A abertura não depende de `ondblclick` ou de `cursor: pointer` na linha.
-- [ ] A ação funciona com Tab, Enter, toque e mouse.
-- [ ] Fornecedor e centro de resultado mantêm acesso ao texto completo.
-- [ ] A busca sem resultados exibe estado específico e permite limpar o termo.
-- [ ] `node --check .\\link\\javascript\\script.js` passa.
+- [x] A abertura não depende de `ondblclick` ou de `cursor: pointer` na linha.
+- [x] A ação funciona com Tab, Enter, toque e mouse.
+- [x] Fornecedor e centro de resultado mantêm acesso ao texto completo.
+- [x] A busca sem resultados exibe estado específico e permite limpar o termo.
+- [x] `node --check .\\link\\javascript\\script.js` passa.
 
 **Tests**: none — manual Sankhya + sintaxe JavaScript
 **Gate**: quick + full
-**Commit**: `feat(pcfi-ui): tornar abertura de pedidos explícita`
+**Commit**: `feat(pcfi-ui): tornar abertura de pedidos explícita` (current task commit)
 
 ### T3: Evoluir a fábrica de campos e refletir valores salvos
 

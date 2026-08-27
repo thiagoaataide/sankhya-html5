@@ -189,10 +189,10 @@ identificar etapa, status e próxima ação sem consultar o código.
 
 | Requirement ID | Story | Phase | Status |
 | --- | --- | --- | --- |
-| PCFI-UI-01 | P1: Navegar pelos pedidos | Tasks | Pending |
-| PCFI-UI-02 | P1: Navegar pelos pedidos | Tasks | Pending |
-| PCFI-UI-03 | P1: Navegar pelos pedidos | Tasks | Pending |
-| PCFI-UI-04 | P1: Preencher conferência | Tasks | Pending |
+| PCFI-UI-01 | P1: Navegar pelos pedidos | Phase 1 / T2 | Implemented |
+| PCFI-UI-02 | P1: Navegar pelos pedidos | Phase 1 / T2 | Implemented |
+| PCFI-UI-03 | P1: Navegar pelos pedidos | Phase 1 / T2 | Implemented |
+| PCFI-UI-04 | P1: Preencher conferência | Phase 1 / T2 | Implemented |
 | PCFI-UI-05 | P1: Preencher conferência | Phase 1 / T1 | In progress |
 | PCFI-UI-06 | P1: Preencher conferência | Tasks | Pending |
 | PCFI-UI-07 | P1: Preencher conferência | Tasks | Pending |
