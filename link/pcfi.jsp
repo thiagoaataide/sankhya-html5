@@ -16,11 +16,12 @@
 <snk:load>
 <jsp:include page="dados.jsp" />
 <div id="app" class="app-shell">
+    <a class="skip-link" href="#main-content">Pular para o conteúdo principal</a>
     <header class="topbar">
         <div>
             <p class="eyebrow">PCFI</p>
             <h1 id="pageTitle">Pedidos de Compra Pendentes</h1>
-            <p id="pageSubtitle">Duplo clique em um pedido para iniciar a conferência.</p>
+            <p id="pageSubtitle">Selecione um pedido para iniciar a conferência.</p>
         </div>
         <div class="topbar-actions">
             <button id="btnVoltar" class="btn btn-ghost hidden" type="button" hidden>Voltar</button>
@@ -28,7 +29,15 @@
         </div>
     </header>
 
-    <main>
+    <nav class="flow-steps" aria-label="Etapas da conferência">
+        <ol>
+            <li class="flow-step is-active" aria-current="step"><span>1</span>Pedidos</li>
+            <li class="flow-step"><span>2</span>PCFIs</li>
+            <li class="flow-step"><span>3</span>Conferência</li>
+        </ol>
+    </nav>
+
+    <main id="main-content">
         <section id="viewLista" class="view">
             <div class="summary-grid">
                 <article class="summary-card"><span>Pedidos</span><strong id="sumPedidos">0</strong></article>
@@ -38,7 +47,8 @@
             <div class="panel">
                 <div class="panel-head">
                     <div><h2>Ordens de compra</h2></div>
-                    <input id="buscaPedidos" class="search" type="search" placeholder="Buscar OC, fornecedor ou centro...">
+                    <label for="buscaPedidos">Buscar pedidos</label>
+                    <input id="buscaPedidos" class="search" name="buscaPedidos" type="search" autocomplete="off" placeholder="Buscar OC, fornecedor ou centro…">
                 </div>
                 <div class="table-wrap">
                     <table>
@@ -66,25 +76,31 @@
         </section>
 
         <section id="viewConferencia" class="view hidden" hidden>
+            <form id="formConferencia" aria-labelledby="tituloConferencia">
             <div id="ocContext" class="context-card"></div>
             <div class="panel form-panel">
                 <div class="section-title"><div><h2 id="tituloConferencia">Identificação do recebimento</h2><p id="subtituloConferencia">O número da nota fiscal é obrigatório.</p></div><span id="qualBadge" class="badge"></span></div>
-                <div id="dadosRecebimento" class="form-grid">
-                    <label class="field"><span>Número da nota fiscal *</span><input id="numNotaNf" maxlength="20" autocomplete="off"></label>
-                    <label class="field field-wide"><span>Observação geral</span><textarea id="obsGeral" rows="2" maxlength="4000"></textarea></label>
-                </div>
+                <fieldset id="dadosRecebimento" class="form-grid">
+                    <legend>Dados do recebimento</legend>
+                    <label class="field"><span>Número da nota fiscal *</span><input id="numNotaNf" name="numNotaNf" type="text" maxlength="20" autocomplete="off" required></label>
+                    <label class="field field-wide"><span>Observação geral</span><textarea id="obsGeral" name="obsGeral" rows="2" maxlength="4000" autocomplete="off"></textarea></label>
+                </fieldset>
             </div>
-            <div id="itensContainer"></div>
+            <fieldset class="item-group">
+                <legend>Itens da conferência</legend>
+                <div id="itensContainer" aria-live="polite" aria-busy="false"></div>
+            </fieldset>
             <div class="footer-actions">
                 <button id="btnCancelar" class="btn btn-ghost" type="button">Cancelar</button>
                 <button id="btnSalvar" class="btn btn-primary" type="button">Salvar conferência</button>
             </div>
+            </form>
         </section>
     </main>
 </div>
 
-<div id="loading" class="loading hidden" hidden><div class="spinner"></div><p id="loadingText">Carregando...</p></div>
-<div id="toast" class="toast hidden" role="status" hidden></div>
+<div id="loading" class="loading hidden" role="status" aria-live="polite" aria-busy="false" hidden><div class="spinner" aria-hidden="true"></div><p id="loadingText">Carregando…</p></div>
+<div id="toast" class="toast hidden" role="status" aria-live="polite" aria-atomic="true" hidden></div>
 
 <div id="modalConfirmacao" class="modal-confirmacao hidden" role="dialog" aria-modal="true" aria-labelledby="modalConfirmacaoTitulo" aria-describedby="modalConfirmacaoMensagem" hidden>
     <div class="modal-confirmacao-card" role="document">
@@ -97,10 +113,10 @@
     </div>
 </div>
 
-<div id="modalQualidade" class="modal-qualidade hidden" role="dialog" aria-modal="true" aria-labelledby="modalQualidadeTitulo" hidden>
+<div id="modalQualidade" class="modal-qualidade hidden" role="dialog" aria-modal="true" aria-labelledby="modalQualidadeTitulo" aria-describedby="modalQualidadeMensagem" hidden>
     <div class="modal-qualidade-card" role="document">
         <h2 id="modalQualidadeTitulo">Finalizar conferência de qualidade</h2>
-        <p>Selecione o resultado. As aprovações seguem para a análise fiscal.</p>
+        <p id="modalQualidadeMensagem">Selecione o resultado. As aprovações seguem para a análise fiscal.</p>
         <div class="modal-qualidade-actions">
             <button id="btnQualidadeAprovar" class="btn btn-primary" type="button">Aprovado</button>
             <button id="btnQualidadeRessalva" class="btn btn-secondary" type="button">Aprovado com ressalva</button>
@@ -110,7 +126,7 @@
     </div>
 </div>
 
-<div id="modalCamera" class="modal-camera hidden" role="dialog" aria-modal="true" aria-labelledby="modalCameraTitulo" hidden>
+<div id="modalCamera" class="modal-camera hidden" role="dialog" aria-modal="true" aria-labelledby="modalCameraTitulo" aria-describedby="cameraMensagem" hidden>
     <div class="modal-camera-card" role="document">
         <h2 id="modalCameraTitulo">Capturar foto do item</h2>
         <video id="cameraPreview" autoplay playsinline muted></video>
@@ -122,10 +138,10 @@
     </div>
 </div>
 
-<div id="modalFiscal" class="modal-fiscal hidden" role="dialog" aria-modal="true" aria-labelledby="modalFiscalTitulo" hidden>
+<div id="modalFiscal" class="modal-fiscal hidden" role="dialog" aria-modal="true" aria-labelledby="modalFiscalTitulo" aria-describedby="modalFiscalMensagem" hidden>
     <div class="modal-fiscal-card">
         <h2 id="modalFiscalTitulo">Análise fiscal</h2>
-        <p>Selecione o resultado da análise desta PCFI.</p>
+        <p id="modalFiscalMensagem">Selecione o resultado da análise desta PCFI.</p>
         <div class="modal-fiscal-actions">
             <button id="btnFiscalAprovar" class="btn btn-primary" type="button">Aprovar</button>
             <button id="btnFiscalNegar" class="btn btn-secondary" type="button">Negar</button>
