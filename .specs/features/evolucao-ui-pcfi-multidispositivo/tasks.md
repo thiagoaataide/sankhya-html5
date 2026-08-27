@@ -138,7 +138,7 @@ mouse, toque e teclado e melhorar busca e estado vazio.
 
 **Tests**: none — manual Sankhya + sintaxe JavaScript
 **Gate**: quick + full
-**Commit**: `feat(pcfi-ui): tornar abertura de pedidos explícita` (current task commit)
+**Commit**: `feat(pcfi-ui): tornar abertura de pedidos explícita` (`502c466`)
 
 ### T3: Evoluir a fábrica de campos e refletir valores salvos
 
