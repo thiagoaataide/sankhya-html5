@@ -750,3 +750,287 @@ tbody tr:hover {
     transition-duration: 0.01ms !important;
   }
 }
+
+@media (min-width: 1025px) and (max-width: 1500px) {
+  .app-shell {
+    padding: 20px;
+  }
+
+  .table-wrap table {
+    table-layout: fixed;
+    font-size: 13px;
+  }
+
+  .table-wrap th,
+  .table-wrap td {
+    overflow: hidden;
+    padding: 10px 8px;
+    text-overflow: ellipsis;
+  }
+
+  .table-wrap col:nth-child(1) {
+    width: 6%;
+  }
+
+  .table-wrap col:nth-child(2) {
+    width: 8%;
+  }
+
+  .table-wrap col:nth-child(3) {
+    width: 6%;
+  }
+
+  .table-wrap col:nth-child(4) {
+    width: 23%;
+  }
+
+  .table-wrap col:nth-child(5) {
+    width: 17%;
+  }
+
+  .table-wrap col:nth-child(6) {
+    width: 10%;
+  }
+
+  .table-wrap col:nth-child(7) {
+    width: 15%;
+  }
+
+  .table-wrap col:nth-child(8) {
+    width: 15%;
+  }
+
+  .table-wrap .fornecedor,
+  .table-wrap .centro-resultado {
+    display: block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+@media (min-width: 601px) and (max-width: 1024px) {
+  .app-shell {
+    padding: 20px;
+  }
+
+  .context-card {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .form-grid,
+  .item-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .quality-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .subrow {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .subrow .icon-btn {
+    grid-column: 1 / -1;
+  }
+
+  .table-wrap table {
+    min-width: 960px;
+  }
+
+  .table-wrap th:last-child,
+  .table-wrap td:last-child {
+    position: sticky;
+    right: 0;
+    z-index: 1;
+    background: var(--panel);
+    box-shadow: -6px 0 10px rgba(24, 39, 58, 0.08);
+  }
+
+  .table-wrap th:last-child {
+    background: var(--panel-muted);
+  }
+
+  .panel-head {
+    align-items: stretch;
+  }
+
+  .search {
+    min-width: 240px;
+  }
+}
+
+@media (max-width: 600px) {
+  .app-shell {
+    padding: max(14px, env(safe-area-inset-top))
+      max(14px, env(safe-area-inset-right))
+      max(14px, env(safe-area-inset-bottom))
+      max(14px, env(safe-area-inset-left));
+  }
+
+  .topbar {
+    flex-direction: column;
+    gap: 14px;
+    margin-bottom: 18px;
+  }
+
+  .topbar h1 {
+    font-size: clamp(23px, 7vw, 28px);
+  }
+
+  .topbar-actions {
+    width: 100%;
+  }
+
+  .topbar-actions .btn {
+    flex: 1;
+    min-height: 44px;
+  }
+
+  .summary-grid,
+  .context-card,
+  .form-grid,
+  .item-grid,
+  .quality-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .summary-grid {
+    gap: 10px;
+  }
+
+  .summary-card {
+    padding: 13px 16px;
+  }
+
+  .panel-head,
+  .section-title {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 12px;
+    padding: 15px 16px;
+  }
+
+  .search {
+    width: 100%;
+    min-width: 0;
+    min-height: 44px;
+  }
+
+  .table-wrap {
+    overflow-x: auto;
+    border-top: 1px solid var(--line);
+  }
+
+  .table-wrap table {
+    min-width: 960px;
+  }
+
+  .table-wrap th:last-child,
+  .table-wrap td:last-child {
+    position: sticky;
+    right: 0;
+    z-index: 1;
+    background: var(--panel);
+    box-shadow: -6px 0 10px rgba(24, 39, 58, 0.08);
+  }
+
+  .table-wrap th:last-child {
+    background: var(--panel-muted);
+  }
+
+  .context-card {
+    gap: 12px;
+    margin-bottom: 12px;
+    padding: 14px 16px;
+  }
+
+  .item-grid {
+    gap: 12px;
+    padding: 14px;
+  }
+
+  .item-section {
+    min-inline-size: 0;
+    padding: 12px;
+  }
+
+  .checkline {
+    min-height: 44px;
+    padding-top: 0;
+  }
+
+  .conditional-head {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .conditional-head .btn,
+  .conditional .icon-btn {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  .subrow,
+  .pat-row {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .subrow .icon-btn,
+  .pat-row .icon-btn {
+    grid-column: auto;
+  }
+
+  .footer-actions {
+    flex-direction: column-reverse;
+    padding-bottom: max(26px, env(safe-area-inset-bottom));
+  }
+
+  .footer-actions .btn {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  .modal-fiscal,
+  .modal-confirmacao,
+  .modal-qualidade,
+  .modal-camera {
+    align-items: flex-end;
+    padding: 14px;
+    padding-bottom: max(14px, env(safe-area-inset-bottom));
+  }
+
+  .modal-fiscal-card,
+  .modal-confirmacao-card,
+  .modal-qualidade-card,
+  .modal-camera-card {
+    max-height: calc(100vh - 28px);
+    overflow-y: auto;
+    padding: 20px;
+  }
+
+  .modal-fiscal-actions,
+  .modal-confirmacao-actions,
+  .modal-qualidade-actions,
+  .modal-camera-actions {
+    flex-direction: column-reverse;
+  }
+
+  .modal-fiscal-actions .btn,
+  .modal-confirmacao-actions .btn,
+  .modal-qualidade-actions .btn,
+  .modal-camera-actions .btn {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  .toast {
+    right: max(14px, env(safe-area-inset-right));
+    bottom: max(14px, env(safe-area-inset-bottom));
+    left: max(14px, env(safe-area-inset-left));
+    max-width: none;
+  }
+}
