@@ -8,7 +8,7 @@ vez, valide o resultado e crie um commit atômico por task. A revisão final com
 
 **Spec**: `.specs/features/evolucao-ui-pcfi-multidispositivo/spec.md`
 **Design**: `.specs/features/evolucao-ui-pcfi-multidispositivo/design.md`
-**Status**: Phase 4 implementation in progress — T8 complete; final runtime validation pending
+**Status**: Phase 4 implementation complete — static gates passed; final runtime validation pending
 
 ## Test Coverage Matrix
 
@@ -354,6 +354,8 @@ resultado da auditoria final.
 **Reuses**: Spec, design, matriz de cobertura e `web-design-guidelines`.
 **Requirement**: PCFI-UI-01 a PCFI-UI-16
 
+**Status**: Partial — auditoria estática concluída; walkthrough no runtime Sankhya pendente
+
 **Tools**:
 
 - MCP: NONE
@@ -362,14 +364,14 @@ resultado da auditoria final.
 
 **Done when**:
 
-- [ ] Cada requisito da spec possui evidência manual ou justificativa registrada.
-- [ ] `web-design-guidelines` é aplicada aos três arquivos de UI.
+- [x] Cada requisito da spec possui evidência manual ou justificativa registrada.
+- [x] `web-design-guidelines` é aplicada aos três arquivos de UI.
 - [ ] O fluxo é percorrido em smartphone, tablet e PC, incluindo orientação
       retrato e paisagem quando disponível.
 - [ ] Busca, vazio, validação, câmera, modais, salvamento e retorno são
       verificados.
-- [ ] `node --check .\\link\\javascript\\script.js` passa.
-- [ ] O resultado é registrado em
+- [x] `node --check .\\link\\javascript\\script.js` passa.
+- [x] O resultado é registrado em
       `.specs/features/evolucao-ui-pcfi-multidispositivo/validation.md` pelo
       verificador independente.
 
