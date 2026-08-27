@@ -1034,3 +1034,146 @@ tbody tr:hover {
     max-width: none;
   }
 }
+
+/* Hierarquia operacional e estados */
+
+.summary-card:nth-child(1)::before {
+  background: var(--brand);
+}
+
+.summary-card:nth-child(2)::before {
+  background: var(--warn);
+}
+
+.summary-card:nth-child(3)::before {
+  background: #26734d;
+}
+
+.summary-card strong {
+  letter-spacing: -0.02em;
+}
+
+#viewLista .panel-head {
+  background: var(--panel);
+}
+
+#viewLista .abrir-pedido {
+  min-width: 112px;
+  border-color: #c9e2e8;
+  background: var(--accent);
+  color: var(--brand-2);
+}
+
+#viewLista .abrir-pedido:hover:not(:disabled) {
+  border-color: var(--brand);
+  background: #d1e9ef;
+}
+
+#viewLista tr.oc-qtde td:first-child,
+#viewLista tr.oc-qual td:first-child,
+#viewLista tr.oc-prioridade td:first-child,
+#viewLista tr.oc-fisc td:first-child {
+  border-left: 4px solid transparent;
+}
+
+#viewLista tr.oc-qtde td:first-child {
+  border-left-color: #26734d;
+}
+
+#viewLista tr.oc-qual td:first-child {
+  border-left-color: #2876a6;
+}
+
+#viewLista tr.oc-prioridade td:first-child {
+  border-left-color: var(--warn);
+}
+
+#viewLista tr.oc-fisc td:first-child {
+  border-left-color: var(--brand);
+}
+
+.pcfi-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.pcfi-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 20px;
+  border-bottom: 1px solid #edf1f6;
+  background: var(--panel);
+}
+
+.pcfi-row:last-child {
+  border-bottom: 0;
+}
+
+.pcfi-row > div {
+  min-width: 0;
+}
+
+.pcfi-row strong {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.pcfi-row p {
+  margin: 3px 0 0;
+  color: var(--muted);
+}
+
+.pcfi-row.pcfi-qtde {
+  border-left: 4px solid #26734d;
+  background: #f1faf4;
+}
+
+.pcfi-row.pcfi-qual {
+  border-left: 4px solid #2876a6;
+  background: #f1f8fc;
+}
+
+.pcfi-row.pcfi-prioridade {
+  border-left: 4px solid var(--warn);
+  background: #fffaf0;
+}
+
+.pcfi-row.pcfi-negada {
+  border-left: 4px solid var(--danger);
+  background: #fff5f4;
+}
+
+#viewPcfis .pcfi-row .btn:not(.btn-ghost),
+#viewConferencia #btnSalvar {
+  box-shadow: 0 2px 6px rgba(15, 95, 119, 0.12);
+}
+
+#viewConferencia .section-title {
+  border-left: 4px solid var(--brand);
+}
+
+#viewConferencia #qualBadge {
+  flex: 0 0 auto;
+  border-color: #a9d0d8;
+  background: var(--accent);
+  color: var(--brand-2);
+}
+
+@media (max-width: 600px) {
+  .pcfi-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .pcfi-row .btn {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  #viewConferencia .section-title {
+    border-left: 0;
+    border-top: 4px solid var(--brand);
+  }
+}
