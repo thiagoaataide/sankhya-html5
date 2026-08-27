@@ -8,7 +8,7 @@ vez, valide o resultado e crie um commit atômico por task. A revisão final com
 
 **Spec**: `.specs/features/evolucao-ui-pcfi-multidispositivo/spec.md`
 **Design**: `.specs/features/evolucao-ui-pcfi-multidispositivo/design.md`
-**Status**: Phase 3 complete — T1 through T9 complete; visual runtime validation pending
+**Status**: Phase 4 implementation in progress — T8 complete; final runtime validation pending
 
 ## Test Coverage Matrix
 
@@ -303,18 +303,19 @@ scroll e mensagens live para confirmação, qualidade, fiscal e câmera.
 
 **Done when**:
 
-- [ ] Todo modal define foco inicial previsível.
-- [ ] O foco não escapa do modal durante a navegação por teclado.
-- [ ] `Esc` e botões de cancelamento fecham com segurança.
-- [ ] O foco retorna ao controle que abriu o modal.
-- [ ] O conteúdo externo não rola enquanto o modal está aberto.
-- [ ] Loading e erro são anunciados sem mensagens duplicadas ou ambíguas.
-- [ ] A câmera é encerrada ao cancelar, fechar ou concluir a captura.
-- [ ] `node --check .\\link\\javascript\\script.js` passa.
+- [x] Todo modal define foco inicial previsível.
+- [x] O foco não escapa do modal durante a navegação por teclado.
+- [x] `Esc` e botões de cancelamento fecham com segurança.
+- [x] O foco retorna ao controle que abriu o modal.
+- [x] O conteúdo externo não rola enquanto o modal está aberto.
+- [x] Loading e erro são anunciados sem mensagens duplicadas ou ambíguas.
+- [x] A câmera é encerrada ao cancelar, fechar ou concluir a captura.
+- [x] `node --check .\\link\\javascript\\script.js` passa.
 
 **Tests**: none — manual Sankhya + sintaxe JavaScript
 **Gate**: quick + full
-**Commit**: `feat(pcfi-ui): uniformizar modais e feedback`
+**Status**: Complete
+**Commit**: `feat(pcfi-ui): uniformizar modais e feedback` (`3c1c668`)
 
 ### T9: Refinar hierarquia, indicadores e estados visuais
 

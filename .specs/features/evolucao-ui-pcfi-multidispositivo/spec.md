@@ -201,7 +201,7 @@ identificar etapa, status e próxima ação sem consultar o código.
 | PCFI-UI-10 | P1: Usar nos três contextos | Phase 3 / T7 | Implemented |
 | PCFI-UI-11 | P2: Feedback acessível | Phase 3 / T7 | Implemented |
 | PCFI-UI-12 | P2: Feedback acessível | Phase 2 / T5 | Implemented |
-| PCFI-UI-13 | P2: Feedback acessível | Phase 1 / T1 | In progress |
+| PCFI-UI-13 | P2: Feedback acessível | Phase 1 / T1 + Phase 4 / T8 | Implemented |
 | PCFI-UI-14 | P2: Feedback acessível | Phase 2 / T5 | Implemented |
 | PCFI-UI-15 | P2: Direção visual | Phase 1 / T1 + Phase 3 / T6/T9 | Implemented |
 | PCFI-UI-16 | P2: Direção visual | Phase 3 / T6/T9 | Implemented |
