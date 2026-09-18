@@ -407,6 +407,22 @@ tbody tr:hover {
   white-space: normal;
 }
 
+.data-prevista-cell {
+  min-width: 112px;
+}
+
+.data-prevista-atrasada {
+  color: var(--danger);
+  font-weight: 800;
+}
+
+.atraso-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
 .item-card {
   margin-bottom: 14px;
   overflow: hidden;
@@ -773,30 +789,38 @@ tbody tr:hover {
   }
 
   .table-wrap col:nth-child(2) {
-    width: 8%;
-  }
-
-  .table-wrap col:nth-child(3) {
     width: 6%;
   }
 
+  .table-wrap col:nth-child(3) {
+    width: 8%;
+  }
+
   .table-wrap col:nth-child(4) {
-    width: 23%;
-  }
-
-  .table-wrap col:nth-child(5) {
-    width: 17%;
-  }
-
-  .table-wrap col:nth-child(6) {
     width: 10%;
   }
 
+  .table-wrap col:nth-child(5) {
+    width: 6%;
+  }
+
+  .table-wrap col:nth-child(6) {
+    width: 16%;
+  }
+
   .table-wrap col:nth-child(7) {
-    width: 15%;
+    width: 12%;
   }
 
   .table-wrap col:nth-child(8) {
+    width: 8%;
+  }
+
+  .table-wrap col:nth-child(9) {
+    width: 13%;
+  }
+
+  .table-wrap col:nth-child(10) {
     width: 15%;
   }
 

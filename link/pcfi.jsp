@@ -43,8 +43,8 @@
                 </div>
                 <div class="table-wrap">
                     <table>
-                        <colgroup><col><col><col><col><col><col><col><col><col></colgroup>
-                        <thead><tr><th>OC</th><th>OP</th><th>Data</th><th>Empresa</th><th>Fornecedor</th><th>CR</th><th>Qtd. pendente</th><th>Status atual</th><th>Conferência</th></tr></thead>
+                        <colgroup><col><col><col><col><col><col><col><col><col><col></colgroup>
+                        <thead><tr><th>OC</th><th>OP</th><th>Data</th><th>Data prevista</th><th>Empresa</th><th>Fornecedor</th><th>CR</th><th>Qtd. pendente</th><th>Status atual</th><th>Conferência</th></tr></thead>
                         <tbody id="pedidosBody"></tbody>
                     </table>
                 </div>
@@ -143,7 +143,7 @@
 <div id="data-root" hidden aria-hidden="true">
     <div id="data-pedidos">
         <c:forEach items="${pcfiPedidosApp.rows}" var="row">
-            <span class="data-pedido" data-nunota="<c:out value='${row.NUNOTA}'/>" data-numnota="<c:out value='${row.NUMNOTA}'/>" data-op="<c:out value='${row.OP}'/>" data-dtneg="<c:out value='${row.DTNEG}'/>" data-codemp="<c:out value='${row.CODEMP}'/>" data-codparc="<c:out value='${row.CODPARC}'/>" data-nomeparc="<c:out value='${row.NOMEPARC}'/>" data-codcencus="<c:out value='${row.CODCENCUS}'/>" data-descr-cr="<c:out value='${row.DESCRCR}'/>" data-qtd-itens="<c:out value='${row.QTD_ITENS}'/>" data-qtd-pendente="<c:out value='${row.QTD_PENDENTE}'/>" data-qtd-pcfi="<c:out value='${row.QTD_PCFI}'/>" data-qualpelconf="<c:out value='${row.QUALPELCONF}'/>" data-codusu-logado="<c:out value='${row.CODUSULOGADO}'/>" data-pode-prioridade="<c:out value='${row.PODEPRIORIDADE}'/>" data-pode-qtde="<c:out value='${row.PODEQTDE}'/>" data-pode-qual="<c:out value='${row.PODEQUAL}'/>" data-pode-fisc="<c:out value='${row.PODEFISC}'/>" data-status-oc="<c:out value='${row.STATUSOC}'/>" data-status-cor="<c:out value='${row.STATUSCOR}'/>"></span>
+            <span class="data-pedido" data-nunota="<c:out value='${row.NUNOTA}'/>" data-numnota="<c:out value='${row.NUMNOTA}'/>" data-op="<c:out value='${row.OP}'/>" data-dtneg="<c:out value='${row.DTNEG}'/>" data-dtprevent="<c:out value='${row.DTPREVENT}'/>" data-codemp="<c:out value='${row.CODEMP}'/>" data-codparc="<c:out value='${row.CODPARC}'/>" data-nomeparc="<c:out value='${row.NOMEPARC}'/>" data-codcencus="<c:out value='${row.CODCENCUS}'/>" data-descr-cr="<c:out value='${row.DESCRCR}'/>" data-qtd-itens="<c:out value='${row.QTD_ITENS}'/>" data-qtd-pendente="<c:out value='${row.QTD_PENDENTE}'/>" data-qtd-pcfi="<c:out value='${row.QTD_PCFI}'/>" data-qualpelconf="<c:out value='${row.QUALPELCONF}'/>" data-codusu-logado="<c:out value='${row.CODUSULOGADO}'/>" data-pode-prioridade="<c:out value='${row.PODEPRIORIDADE}'/>" data-pode-qtde="<c:out value='${row.PODEQTDE}'/>" data-pode-qual="<c:out value='${row.PODEQUAL}'/>" data-pode-fisc="<c:out value='${row.PODEFISC}'/>" data-status-oc="<c:out value='${row.STATUSOC}'/>" data-status-cor="<c:out value='${row.STATUSCOR}'/>"></span>
         </c:forEach>
     </div>
     <div id="data-pcfis">
