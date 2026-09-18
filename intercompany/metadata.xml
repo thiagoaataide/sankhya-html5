@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<metadata>
+  <exportInfo>
+    <exportTime>Diagnostico Devolucao Intercompany</exportTime>
+  </exportInfo>
+  <instances>
+    <instance name="HTML5_INTERCOMPANY_DEVOLUCAO" isUpdate="false">
+      <instanceDescription><![CDATA[Dashboard diagnostico devolucao intercompany]]></instanceDescription>
+    </instance>
+  </instances>
+</metadata>

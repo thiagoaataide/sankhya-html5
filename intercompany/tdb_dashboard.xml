@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<gadget>
+    <prompt-parameters>
+        <parameter id="P_CODEMP" description="Empresas devolvedoras" metadata="multiList:Text"
+                   listType="sql" required="true" keep-last="true" keep-date="false"
+                   show-inactives="false" label="Empresa (devolu&#231;&#227;o)" order="0">
+            <expression type="SQL"><![CDATA[
+                SELECT
+                    TO_CHAR(emp.CODEMP) AS VALUE,
+                    TO_CHAR(emp.CODEMP) || ' - ' || NVL(NULLIF(TRIM(emp.NOMEFANTASIA), ''), TRIM(emp.RAZAOSOCIAL)) AS LABEL
+                  FROM TSIEMP emp
+                 WHERE emp.CODEMP IN (2, 7)
+                 ORDER BY emp.CODEMP
+            ]]></expression>
+        </parameter>
+        <parameter id="P_CODPROD" description="Produto (opcional)" metadata="integer"
+                   required="false" keep-last="true" keep-date="false"
+                   show-inactives="false" label="C&#243;digo produto" order="1"/>
+    </prompt-parameters>
+    <level id="lvl_intercompany_devolucao" description="Diagn&#243;stico devolu&#231;&#227;o intercompany">
+        <container orientacao="V" tamanhoRelativo="100">
+            <container orientacao="V" tamanhoRelativo="100">
+                <html5component id="html5_intercompany_devolucao" entryPoint="intercompany_devolucao.jsp"/>
+            </container>
+        </container>
+    </level>
+</gadget>

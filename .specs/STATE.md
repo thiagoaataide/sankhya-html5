@@ -12,4 +12,6 @@
 
 ## Handoff
 
-Feature registrada; implementação em andamento.
+Dashboard `intercompany/` — diagnóstico devolução intercompany (empresas 2 e 7).
+Spec: `.specs/features/intercompany-devolucao-diagnostico/spec.md`
+Próximo passo: publicar gadget no Sankhya e validar SQL em produção (volume de notas).
