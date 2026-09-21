@@ -68,20 +68,35 @@
                 <span class="eyebrow">LISTA PRINCIPAL</span>
                 <h2 id="grid-title">Contas em apura&ccedil;&atilde;o</h2>
             </div>
-            <span class="muted" id="grid-meta">Uma linha por apura&ccedil;&atilde;o</span>
+            <div class="panel__tools">
+                <details class="column-picker" id="column-picker">
+                    <summary>Colunas</summary>
+                    <div class="column-picker__menu" aria-label="Escolher colunas vis&iacute;veis">
+                        <label><input type="checkbox" data-column="0" checked> Sequ&ecirc;ncia</label>
+                        <label><input type="checkbox" data-column="1" checked> Conta</label>
+                        <label><input type="checkbox" data-column="2" checked> Contrato</label>
+                        <label><input type="checkbox" data-column="3" checked> Refer&ecirc;ncia</label>
+                        <label><input type="checkbox" data-column="4" checked> Vencimento</label>
+                        <label><input type="checkbox" data-column="5" checked> Valor</label>
+                        <label><input type="checkbox" data-column="6" checked> Estado</label>
+                        <label><input type="checkbox" data-column="7" checked> Anexo</label>
+                    </div>
+                </details>
+                <span class="muted" id="grid-meta">Uma linha por apura&ccedil;&atilde;o</span>
+            </div>
         </div>
         <div class="table-wrap" tabindex="0">
             <table id="grid-apuracoes">
                 <thead>
                 <tr>
-                    <th scope="col">Sequ&ecirc;ncia</th>
-                    <th scope="col">Conta</th>
-                    <th scope="col">Contrato</th>
-                    <th scope="col">Refer&ecirc;ncia</th>
-                    <th scope="col">Vencimento</th>
-                    <th scope="col" class="num">Valor</th>
-                    <th scope="col">Estado</th>
-                    <th scope="col">Anexo</th>
+                    <th scope="col" data-column="0"><button type="button" class="sort-trigger" data-sort="nuapuracao">Sequ&ecirc;ncia <span aria-hidden="true"></span></button></th>
+                    <th scope="col" data-column="1"><button type="button" class="sort-trigger" data-sort="codconta">Conta <span aria-hidden="true"></span></button></th>
+                    <th scope="col" data-column="2"><button type="button" class="sort-trigger" data-sort="numcontrato">Contrato <span aria-hidden="true"></span></button></th>
+                    <th scope="col" data-column="3"><button type="button" class="sort-trigger" data-sort="referencia">Refer&ecirc;ncia <span aria-hidden="true"></span></button></th>
+                    <th scope="col" data-column="4"><button type="button" class="sort-trigger" data-sort="dtvenc">Vencimento <span aria-hidden="true"></span></button></th>
+                    <th scope="col" class="num" data-column="5"><button type="button" class="sort-trigger" data-sort="valor">Valor <span aria-hidden="true"></span></button></th>
+                    <th scope="col" data-column="6">Estado</th>
+                    <th scope="col" data-column="7">Anexo</th>
                 </tr>
                 </thead>
                 <tbody id="grid-apuracoes-body"></tbody>

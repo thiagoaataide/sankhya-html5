@@ -146,6 +146,37 @@ h2 { margin-bottom: 0; font-size: 21px; letter-spacing: -0.02em; }
     gap: 20px;
     padding: 20px 22px 16px;
 }
+.panel__tools { display: flex; align-items: center; gap: 16px; }
+.column-picker { position: relative; }
+.column-picker summary {
+    border: 1px solid var(--line-strong);
+    border-radius: 3px;
+    padding: 7px 10px;
+    color: var(--ink);
+    background: var(--surface);
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 700;
+    list-style: none;
+}
+.column-picker summary::-webkit-details-marker { display: none; }
+.column-picker summary::after { content: "▾"; margin-left: 8px; color: var(--muted); }
+.column-picker[open] summary { border-color: var(--accent); background: #edf3ef; }
+.column-picker__menu {
+    position: absolute;
+    z-index: 3;
+    top: calc(100% + 6px);
+    right: 0;
+    display: grid;
+    min-width: 180px;
+    gap: 8px;
+    padding: 12px;
+    border: 1px solid var(--line-strong);
+    background: var(--surface);
+    box-shadow: var(--shadow);
+}
+.column-picker__menu label { color: var(--ink); font-size: 12px; white-space: nowrap; }
+.column-picker__menu input { margin-right: 6px; accent-color: var(--accent); }
 .table-wrap { overflow-x: auto; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
 .table-wrap:focus-visible { outline: 3px solid rgba(28, 107, 90, 0.25); outline-offset: -3px; }
 table { width: 100%; min-width: 860px; border-collapse: collapse; background: var(--surface); }
@@ -160,6 +191,21 @@ th {
     white-space: nowrap;
 }
 td { font-size: 13px; }
+.sort-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    border: 0;
+    padding: 0;
+    color: inherit;
+    background: transparent;
+    font: inherit;
+    letter-spacing: inherit;
+    text-transform: inherit;
+    text-align: inherit;
+}
+.sort-trigger:hover, .sort-trigger:focus-visible { color: var(--accent-dark); }
+.sort-trigger span { min-width: 9px; color: var(--accent); }
 tbody tr { outline: none; transition: background-color 100ms ease; }
 tbody tr:hover, tbody tr:focus-visible { background: #f5f8f5; }
 tbody tr.is-selected { background: var(--surface-selected); box-shadow: inset 3px 0 0 var(--accent); }

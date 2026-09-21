@@ -306,6 +306,8 @@ Fase 4: T9 + T12 + T13 + T14 + T15 → T16
 **Tests:** manual — UAT do solicitante  
 **Gate:** UAT de consulta
 
+**Status:** ✅ Concluída — preferências locais com chave própria, ordenação, escolha de colunas e CSV UTF-8 com BOM implementados em `facilita/apuracao-faturas/javascript/script.js`.
+
 ### Fase 4 — Empacotamento e aceite
 
 ### T16: Preparar pacote e roteiro de UAT
