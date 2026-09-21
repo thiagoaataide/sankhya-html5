@@ -6,12 +6,17 @@
 <snk:query var="dados">
 <![CDATA[
 WITH PARAMS AS (
-    SELECT NVL(
-               TO_DATE(NULLIF(SUBSTR('${P_REFERENCIA}', 1, 10), ''), 'YYYY-MM-DD'),
-               TRUNC(SYSDATE, 'MM')
+    SELECT TO_DATE(
+               CASE
+                   WHEN TRIM('${P_REFERENCIA}') IS NULL
+                     OR LOWER(TRIM('${P_REFERENCIA}')) IN ('null', '0')
+                   THEN TO_CHAR(TRUNC(SYSDATE, 'MM'), 'YYYY-MM-DD')
+                   ELSE SUBSTR('${P_REFERENCIA}', 1, 10)
+               END,
+               'YYYY-MM-DD'
            ) AS DT_REF,
-           '${P_SOMENTE_PENDENTES}' AS SOMENTE_PENDENTES,
-           '${P_POSSUI_ANEXO}' AS POSSUI_ANEXO
+           CASE WHEN UPPER(TRIM('${P_SOMENTE_PENDENTES}')) = 'S' THEN 'S' ELSE 'N' END AS SOMENTE_PENDENTES,
+           CASE WHEN UPPER(TRIM('${P_POSSUI_ANEXO}')) = 'S' THEN 'S' ELSE 'N' END AS POSSUI_ANEXO
       FROM DUAL
 )
 SELECT TO_CHAR(APU.NUAPURACAO) AS NUAPURACAO,
