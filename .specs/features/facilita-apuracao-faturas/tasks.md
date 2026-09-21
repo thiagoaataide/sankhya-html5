@@ -1,7 +1,7 @@
 # Dashboard de Apuração de Faturas — Tarefas
 
 **Design:** `design.md`  
-**Status:** em execução — T4, T5, T6, T7 e T8 concluídas.
+**Status:** em execução — T4, T5, T6, T7, T8 e T9 concluídas.
 
 ## Protocolo de validação
 
@@ -203,6 +203,8 @@ Fase 4: T9 + T12 + T13 + T14 + T15 → T16
 
 **Tests:** manual — UAT do solicitante  
 **Gate:** UAT de consulta
+
+**Status:** ✅ Concluída — estilos responsivos, estados visuais, tabela, filtros e foco acessível implementados em `facilita/apuracao-faturas/css/style.css`.
 
 ### Fase 2 — Detalhe e navegação
 
