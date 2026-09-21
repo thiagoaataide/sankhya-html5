@@ -4,7 +4,6 @@
 <%@ taglib prefix="snk" uri="/WEB-INF/tld/sankhyaUtil.tld" %>
 
 <snk:query var="dados">
-<![CDATA[
 WITH PARAMS AS (
     SELECT TO_DATE(
                CASE
@@ -63,7 +62,6 @@ SELECT TO_CHAR(APU.NUAPURACAO) AS NUAPURACAO,
        )
    )
  ORDER BY APU.DTVENC NULLS LAST, APU.NUAPURACAO
-]]>
 </snk:query>
 
 <div id="data-container" aria-hidden="true">
