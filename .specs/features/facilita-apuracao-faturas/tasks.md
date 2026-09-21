@@ -1,7 +1,7 @@
 # Dashboard de Apuração de Faturas — Tarefas
 
 **Design:** `design.md`  
-**Status:** em execução — T4 concluída.
+**Status:** em execução — T4 e T5 concluídas.
 
 ## Protocolo de validação
 
@@ -132,6 +132,8 @@ Fase 4: T9 + T12 + T13 + T14 + T15 → T16
 
 **Tests:** manual — UAT do solicitante  
 **Gate:** UAT de consulta
+
+**Status:** ✅ Concluída — JSP principal criado em `facilita/apuracao-faturas/tdb_partida.jsp`.
 
 ### T6: Criar página de erro do gadget
 
