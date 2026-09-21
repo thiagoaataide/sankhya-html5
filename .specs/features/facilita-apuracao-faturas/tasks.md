@@ -262,6 +262,8 @@ Fase 4: T9 + T12 + T13 + T14 + T15 → T16
 **Tests:** manual — UAT do solicitante  
 **Gate:** UAT transacional
 
+**Status:** ⛔ Bloqueada — falta contrato homologado da fachada de atualização, validações e controle de concorrência.
+
 ### T13: Integrar anexo e visualização
 
 **What:** Implementar seleção de um arquivo, tipo obrigatório e abertura do visualizador conforme o contrato homologado.  
@@ -278,6 +280,8 @@ Fase 4: T9 + T12 + T13 + T14 + T15 → T16
 **Tests:** manual — UAT do solicitante  
 **Gate:** UAT transacional
 
+**Status:** ⛔ Bloqueada — upload, tipo e compensação dependem de contrato homologado de anexos; somente a visualização legada está disponível no detalhe.
+
 ### T14: Integrar confirmação e nova auditoria
 
 **What:** Implementar comandos de confirmação e solicitação de nova auditoria com o contrato homologado.  
@@ -293,6 +297,8 @@ Fase 4: T9 + T12 + T13 + T14 + T15 → T16
 
 **Tests:** manual — UAT do solicitante  
 **Gate:** UAT transacional
+
+**Status:** ⛔ Bloqueada — confirmação e nova auditoria dependem de fachada atômica e validação da permissão `BH_NOVAAUDIT`.
 
 ### T15: Implementar colunas locais e exportação
 
@@ -330,6 +336,8 @@ Fase 4: T9 + T12 + T13 + T14 + T15 → T16
 
 **Tests:** manual — UAT do solicitante  
 **Gate:** Pacote
+
+**Status:** ⚠️ Parcial — roteiro criado em `.specs/features/facilita-apuracao-faturas/homologacao.md`; ZIP final aguarda T12–T14.
 
 ## Cross-check de dependências
 
