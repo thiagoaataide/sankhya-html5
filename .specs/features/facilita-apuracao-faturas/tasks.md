@@ -1,7 +1,7 @@
 # Dashboard de Apuração de Faturas — Tarefas
 
 **Design:** `design.md`  
-**Status:** em execução — T4 e T5 concluídas.
+**Status:** em execução — T4, T5 e T6 concluídas.
 
 ## Protocolo de validação
 
@@ -149,6 +149,8 @@ Fase 4: T9 + T12 + T13 + T14 + T15 → T16
 
 **Tests:** manual — UAT do solicitante  
 **Gate:** UAT de consulta
+
+**Status:** ✅ Concluída — página segura criada em `facilita/apuracao-faturas/erro.jsp`.
 
 ### T7: Criar consulta inicial de apurações
 
