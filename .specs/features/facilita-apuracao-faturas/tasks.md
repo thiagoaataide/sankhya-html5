@@ -1,7 +1,7 @@
 # Dashboard de Apuração de Faturas — Tarefas
 
 **Design:** `design.md`  
-**Status:** em execução — T4, T5, T6, T7, T8, T9, T10 e T15 concluídas; T11 parcial; T12–T14 e T16 bloqueadas por contratos transacionais ainda não homologados.
+**Status:** em execução — T1 evidência preparada; T2 e T3 parcialmente documentadas; T4, T5, T6, T7, T8, T9, T10 e T15 concluídas; T11–T14 com adaptadores implementados e UAT dependente da fachada; T17 em execução; T18 e T21 aguardam o pacote/ambiente do backend; T16 aguarda UAT final.
 
 ## Protocolo de validação
 
@@ -41,8 +41,9 @@ Fase 1: T4 → T5 → T8 → T15
          T4 → T6
          T5 → T9
 Fase 2: T2 + T3 + T7 → T10; T8 + T10 → T11
-Fase 3: T2 + T11 → (T12, T13, T14)
-Fase 4: T9 + T12 + T13 + T14 + T15 → T16
+Fase 3: T2 + T3 + T7 + T11 → T17 → T18
+Fase 4: T11 + T18 → (T12, T13, T14)
+Fase 5: T9 + T12 + T13 + T14 + T15 → T21 → T16
 ```
 
 ## Task Breakdown
@@ -65,6 +66,8 @@ Fase 4: T9 + T12 + T13 + T14 + T15 → T16
 **Tests:** manual — UAT do solicitante  
 **Gate:** UAT de consulta
 
+**Status:** ⚠️ Evidência preparada com consulta somente leitura no ambiente Facilita Telecom/teste; falta a confirmação manual da amostra pelo solicitante.
+
 ### T2: Registrar contratos observados das ações legadas
 
 **What:** Capturar request, resposta, erros e permissões de salvar, anexar, confirmar, solicitar nova auditoria e abrir tarefa.  
@@ -81,6 +84,8 @@ Fase 4: T9 + T12 + T13 + T14 + T15 → T16
 **Tests:** manual — UAT do solicitante  
 **Gate:** UAT transacional
 
+**Status:** ⚠️ Parcial — contratos e regras conhecidos do fonte foram registrados, mas request/response reais dos serviços ainda precisam ser capturados no Om do cliente.
+
 ### T3: Definir exposição de dados por perfil
 
 **What:** Registrar quais campos de detalhe podem ser exibidos, mascarados ou excluídos.  
@@ -96,6 +101,8 @@ Fase 4: T9 + T12 + T13 + T14 + T15 → T16
 
 **Tests:** manual — UAT do solicitante  
 **Gate:** UAT de consulta
+
+**Status:** ⚠️ Parcial — matriz conservadora criada em `dados-sensiveis.md`; aguarda aprovação do responsável do cliente.
 
 ### Fase 1 — Consulta e experiência base
 
@@ -242,15 +249,55 @@ Fase 4: T9 + T12 + T13 + T14 + T15 → T16
 **Tests:** manual — UAT do solicitante  
 **Gate:** UAT de consulta
 
-**Status:** ⚠️ Parcial — detalhe assíncrono com proteção contra respostas obsoletas e visualização de anexos implementado; abertura de tarefa permanece bloqueada até homologar o retorno de `ApuracaoSP.getTarefa`/`IDINSTTAR`.
+**Status:** ⚠️ Parcial — detalhe assíncrono, visualização via fachada e abertura por `openApp` implementados; UAT permanece pendente até homologar o retorno de `getTarefa`/`IDINSTTAR`.
 
-### Fase 3 — Operações e exportação
+### Fase 3 — Desenho e fachada transacional
+
+### T17: Consolidar contrato da fachada transacional
+
+**What:** Fechar o contrato lógico da fachada para consulta de detalhe, atualização, confirmação, nova auditoria, anexos e workflow, sem inventar campos que ainda não foram capturados no Om.
+**Where:** `.specs/features/facilita-apuracao-faturas/contracts.md`, `.specs/features/facilita-apuracao-faturas/adr/ADR-001-fachada-transacional-dashboard.md`
+**Depends on:** T2, T3, T7, T11
+**Requirement:** APU-04 a APU-14
+
+**Done when:**
+
+- [ ] Cada operação possui entrada mínima, envelope de sucesso/erro e regra de reconsulta.
+- [ ] Autorização, concorrência, idempotência, correlação e compensação de falha estão explícitas.
+- [ ] Itens desconhecidos estão marcados como PENDENTE e viraram evidência a capturar em homologação.
+- [ ] O responsável do cliente aprova o contrato mínimo para iniciar o backend.
+
+**Tests:** manual — revisão do contrato e captura no Sankhya Om
+**Gate:** UAT transacional
+
+**Status:** 🔄 Em execução — contrato inicial criado em `contracts.md`; falta captura/aprovação no ambiente do cliente.
+
+### T18: Criar a fachada transacional no novo pacote
+
+**What:** Implementar o serviço de backend separado do legado, com operações atômicas, autorização por sessão e envelope de resposta definido no T17.
+**Where:** novo pacote de backend da Facilita (local físico e mecanismo de registro definidos no T17)
+**Depends on:** T17
+**Requirement:** APU-05 a APU-14
+
+**Done when:**
+
+- [ ] O pacote não depende do checkout `facilitatelecoment` para build ou deploy.
+- [ ] Atualização, confirmação, nova auditoria e anexos validam estado/versão antes do commit.
+- [ ] Erros de negócio, conflito, autorização e integração retornam `code`, `message` seguro e `correlationId`.
+- [ ] Há evidência manual de sucesso e recusa para cada operação em homologação.
+
+**Tests:** manual — UAT transacional do pacote novo
+**Gate:** UAT transacional
+
+**Status:** ⛔ Bloqueada — o pacote de backend e o mecanismo de registro da fachada não estão presentes neste workspace; não é seguro inventar uma implementação Java ou buildar o checkout legado.
+
+### Fase 4 — Operações e exportação
 
 ### T12: Integrar edição de valor e vencimento
 
 **What:** Implementar o adaptador de edição com o contrato homologado e recarga da linha após resposta.  
 **Where:** `facilita/apuracao-faturas/javascript/script.js`  
-**Depends on:** T2, T11  
+**Depends on:** T2, T11, T18
 **Requirement:** APU-04, APU-05, APU-06
 
 **Done when:**
@@ -262,13 +309,13 @@ Fase 4: T9 + T12 + T13 + T14 + T15 → T16
 **Tests:** manual — UAT do solicitante  
 **Gate:** UAT transacional
 
-**Status:** ⛔ Bloqueada — falta contrato homologado da fachada de atualização, validações e controle de concorrência.
+**Status:** ⚠️ Adaptador implementado — a chamada usa `ApuracaoDashboardSP.atualizar`; execução real aguarda T17/T18 e publicação da fachada.
 
 ### T13: Integrar anexo e visualização
 
 **What:** Implementar seleção de um arquivo, tipo obrigatório e abertura do visualizador conforme o contrato homologado.  
 **Where:** `facilita/apuracao-faturas/javascript/script.js`  
-**Depends on:** T2, T11  
+**Depends on:** T2, T11, T18
 **Requirement:** APU-07, APU-08, APU-09
 
 **Done when:**
@@ -280,13 +327,13 @@ Fase 4: T9 + T12 + T13 + T14 + T15 → T16
 **Tests:** manual — UAT do solicitante  
 **Gate:** UAT transacional
 
-**Status:** ⛔ Bloqueada — upload, tipo e compensação dependem de contrato homologado de anexos; somente a visualização legada está disponível no detalhe.
+**Status:** ⚠️ Adaptador implementado — upload para sessão e associação usam `ApuracaoDashboardSP.anexar`/`listarAnexos`; execução real aguarda T17/T18 e publicação da fachada.
 
 ### T14: Integrar confirmação e nova auditoria
 
 **What:** Implementar comandos de confirmação e solicitação de nova auditoria com o contrato homologado.  
 **Where:** `facilita/apuracao-faturas/javascript/script.js`  
-**Depends on:** T2, T11  
+**Depends on:** T2, T11, T18
 **Requirement:** APU-10, APU-11, APU-12
 
 **Done when:**
@@ -298,7 +345,7 @@ Fase 4: T9 + T12 + T13 + T14 + T15 → T16
 **Tests:** manual — UAT do solicitante  
 **Gate:** UAT transacional
 
-**Status:** ⛔ Bloqueada — confirmação e nova auditoria dependem de fachada atômica e validação da permissão `BH_NOVAAUDIT`.
+**Status:** ⚠️ Adaptador implementado — confirmação e nova auditoria usam operações distintas da fachada; execução real aguarda T17/T18 e validação de `BH_NOVAAUDIT`.
 
 ### T15: Implementar colunas locais e exportação
 
@@ -318,13 +365,32 @@ Fase 4: T9 + T12 + T13 + T14 + T15 → T16
 
 **Status:** ✅ Concluída — preferências locais com chave própria, ordenação, escolha de colunas e CSV UTF-8 com BOM implementados em `facilita/apuracao-faturas/javascript/script.js`.
 
-### Fase 4 — Empacotamento e aceite
+### Fase 5 — Empacotamento e aceite
+
+### T21: Executar UAT transacional integrado
+
+**What:** Validar no Sankhya Om as operações integradas do gadget contra a fachada, incluindo sucesso, recusa, conflito e falha parcial.
+**Where:** `.specs/features/facilita-apuracao-faturas/homologacao.md`
+**Depends on:** T9, T12, T13, T14, T15
+**Requirement:** APU-04 a APU-16
+
+**Done when:**
+
+- [ ] Edição, anexo, confirmação, nova auditoria e tarefa são testados com usuário autorizado.
+- [ ] Recusa por permissão, valor ausente, conflito e falha de integração não deixam estado parcial na UI.
+- [ ] A amostra de registros e o correlation ID de cada cenário ficam registrados sem dados sensíveis.
+- [ ] O solicitante decide aceite, correção ou retorno ao plano B nativo.
+
+**Tests:** manual — UAT do solicitante
+**Gate:** UAT transacional
+
+**Status:** ⛔ Bloqueada — depende da publicação da fachada T18 e das integrações T12–T14 no Om de homologação.
 
 ### T16: Preparar pacote e roteiro de UAT
 
 **What:** Criar ZIP publicável e consolidar roteiro de aceite por requisito.  
 **Where:** `facilita/apuracao-faturas/` e `.specs/features/facilita-apuracao-faturas/homologacao.md`  
-**Depends on:** T9, T12, T13, T14, T15  
+**Depends on:** T21
 **Requirement:** APU-01 a APU-16
 
 **Done when:**
@@ -337,7 +403,7 @@ Fase 4: T9 + T12 + T13 + T14 + T15 → T16
 **Tests:** manual — UAT do solicitante  
 **Gate:** Pacote
 
-**Status:** ⚠️ Parcial — roteiro criado em `.specs/features/facilita-apuracao-faturas/homologacao.md`; ZIP final aguarda T12–T14.
+**Status:** ⚠️ Parcial — roteiro criado em `.specs/features/facilita-apuracao-faturas/homologacao.md`; ZIP final aguarda T21.
 
 ## Cross-check de dependências
 
@@ -354,11 +420,14 @@ Fase 4: T9 + T12 + T13 + T14 + T15 → T16
 | T9 | T5 | T5 → T9 | OK |
 | T10 | T2, T3, T7 | T2 + T3 + T7 → T10 | OK |
 | T11 | T8, T10 | T8 + T10 → T11 | OK |
-| T12 | T2, T11 | T2 + T11 → T12 | OK |
-| T13 | T2, T11 | T2 + T11 → T13 | OK |
-| T14 | T2, T11 | T2 + T11 → T14 | OK |
+| T12 | T2, T11, T18 | T11 + T18 → T12 | OK |
+| T13 | T2, T11, T18 | T11 + T18 → T13 | OK |
+| T14 | T2, T11, T18 | T11 + T18 → T14 | OK |
 | T15 | T8 | T8 → T15 | OK |
-| T16 | T9, T12, T13, T14, T15 | Fase 4 consolida todas | OK |
+| T17 | T2, T3, T7, T11 | T2 + T3 + T7 + T11 → T17 | OK |
+| T18 | T17 | T17 → T18 | OK |
+| T21 | T9, T12, T13, T14, T15 | T9 + T12 + T13 + T14 + T15 → T21 | OK |
+| T16 | T21 | T21 → T16 | OK |
 
 ## Validação da co-localização
 
@@ -367,6 +436,9 @@ Fase 4: T9 + T12 + T13 + T14 + T15 → T16
 | T1-T3 | documentação de homologação | manual | manual | OK |
 | T4-T7, T10 | XML/JSP | manual | manual | OK |
 | T8-T9, T11-T15 | JavaScript/CSS | manual | manual | OK |
+| T17 | contrato/ADR | manual | manual | OK |
+| T18 | backend transacional | manual | manual | OK |
+| T21 | integração | manual | manual | OK |
 | T16 | pacote | manual | manual | OK |
 
 ## Execução

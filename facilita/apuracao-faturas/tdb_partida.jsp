@@ -15,6 +15,7 @@
 <snk:load>
     <jsp:include page="dados.jsp"/>
     <script>window.FACILITA_APURACAO_BASE = "${BASE_FOLDER}";</script>
+    <script>window.FACILITA_APURACAO_FACADE = { servicePrefix: "facilitatelecom@ApuracaoDashboardSP" };</script>
     <script src="${BASE_FOLDER}/javascript/script.js"></script>
 </snk:load>
 
@@ -127,12 +128,50 @@
             <span id="detail-state" class="badge badge--muted">Aguardando</span>
         </div>
         <div id="detail-body" class="detail-grid"></div>
+        <form id="detail-edit" class="detail-edit" novalidate>
+            <fieldset>
+                <legend>Dados edit&aacute;veis</legend>
+                <div class="detail-edit__fields">
+                    <label class="filter-control" for="edit-dtvenc">
+                        <span>Vencimento</span>
+                        <input type="date" id="edit-dtvenc" name="dtvenc" autocomplete="off">
+                    </label>
+                    <label class="filter-control" for="edit-valor">
+                        <span>Valor</span>
+                        <input type="number" id="edit-valor" name="valor" min="0" step="0.01" inputmode="decimal" autocomplete="off">
+                    </label>
+                    <button type="submit" class="btn btn--quiet" id="btn-save-edit" disabled>Salvar altera&ccedil;&otilde;es</button>
+                </div>
+            </fieldset>
+        </form>
+        <fieldset class="attachment-editor">
+            <legend>Anexo</legend>
+            <div class="attachment-editor__fields">
+                <label class="filter-control" for="attachment-file">
+                    <span>Arquivo</span>
+                    <input type="file" id="attachment-file" name="attachment" autocomplete="off">
+                </label>
+                <label class="filter-control" for="attachment-type">
+                    <span>Tipo</span>
+                    <select id="attachment-type" name="attachmentType" autocomplete="off">
+                        <option value="">Selecione</option>
+                        <option value="Original">Original</option>
+                        <option value="2ª via">2&ordf; via</option>
+                        <option value="Ajustada">Ajustada</option>
+                        <option value="Boleto">Boleto</option>
+                        <option value="Nota Fiscal">Nota Fiscal</option>
+                        <option value="Resumida">Resumida</option>
+                    </select>
+                </label>
+                <button type="button" class="btn btn--quiet" id="btn-upload-attachment" disabled>Enviar anexo</button>
+            </div>
+        </fieldset>
         <div class="detail-actions" aria-label="A&ccedil;&otilde;es da apura&ccedil;&atilde;o">
             <button type="button" class="btn btn--quiet" id="btn-open-task" disabled>Abrir tarefa</button>
             <button type="button" class="btn btn--quiet" id="btn-view-attachment" disabled>Ver anexo</button>
             <button type="button" class="btn btn--accent" id="btn-confirm" disabled>Confirmar</button>
         </div>
-        <div id="detail-message" class="inline-message" role="status" hidden></div>
+        <div id="detail-message" class="inline-message" role="status" aria-live="polite" hidden></div>
     </section>
 </main>
 </body>

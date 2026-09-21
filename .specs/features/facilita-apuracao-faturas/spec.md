@@ -1,6 +1,6 @@
-# Dashboard de Apuração de Faturas — Especificação (rascunho)
+# Dashboard de Apuração de Faturas — Especificação
 
-**Status:** especificação de referência pronta; risco de divergência do fonte legado aceito pelo solicitante. Implementação e deploy permanecem sujeitos aos portões de homologação.
+**Status:** especificação atualizada; decisão arquitetural aceita; execução iniciada pelo desenho do contrato da fachada. O risco de divergência do fonte legado foi aceito pelo solicitante. Implementação e deploy permanecem sujeitos à homologação manual.
 
 ## Problema
 
@@ -8,12 +8,19 @@ A tela legada `Apuração de Faturas` carrega os dados e, após a criação da g
 
 O checkout disponível em `C:\projetos\facilitatelecoment` não é uma base confiável de publicação: há alterações locais extensas e não há evidência que o associe ao artefato instalado `facilitatelecom-0.0.14457-botaoAcaoAnexo.jar` visto nos logs. Portanto, esta especificação não autoriza build ou deploy desse checkout.
 
+## Decisão arquitetural
+
+A solução seguirá uma migração incremental. O gadget HTML5 deste projeto será a camada de consulta e experiência. As mutações necessárias para paridade funcional serão encapsuladas por uma nova fachada transacional de backend da Facilita, em pacote separado do legado. O gadget não chamará diretamente os serviços legados para gravar dados. A decisão, alternativas e consequências estão em [`ADR-001-fachada-transacional-dashboard.md`](adr/ADR-001-fachada-transacional-dashboard.md).
+
+O layout não precisa ser visualmente idêntico à tela antiga. O critério é entregar as capacidades funcionais, autorização, consistência e rastreabilidade equivalentes.
+
 ## Objetivos
 
 - [ ] Disponibilizar a consulta de apurações sem usar `sk-datagrid`, `GridConfig` ou Angular legado.
 - [ ] Reproduzir as funções de negócio necessárias da tela com contratos explicitamente validados no ambiente de homologação.
 - [ ] Preservar autorização, consistência de transações e rastreabilidade das operações.
 - [ ] Permitir implantação isolada em um novo pacote, sem recompilar o add-on legado.
+- [ ] Encapsular escrita, anexos e workflow em uma fachada com contrato estável e erros estruturados.
 
 ## Fora de escopo
 
@@ -125,9 +132,10 @@ flowchart TD
 | Decisão / lacuna | Padrão adotado no rascunho | Motivo | Confirmada? |
 | --- | --- | --- | --- |
 | Artefato efetivamente instalado | Usar o checkout legado como referência funcional, assumindo o risco de divergência; validar comportamento em homologação. | Risco explicitamente aceito pelo solicitante; não há manifesto do JAR instalado. | Sim |
-| Forma da UI | Avaliar gadget HTML5 para consulta e um add-on HTML5 isolado para paridade transacional. | Gadget é adequado a visualização; anexos e mudanças de estado precisam de contrato server-side. | Não |
+| Forma da UI | Gadget HTML5 com layout próprio, aceitando diferença visual desde que entregue as funcionalidades. | O problema é a dependência da grade legada, não a aparência; o dashboard reduz a superfície de incompatibilidade. | Sim |
+| Fronteira transacional | Nova fachada de backend da Facilita, com nome lógico `ApuracaoDashboardSP`. | Evita acoplar a UI a serviços de versão desconhecida e permite validar autorização, concorrência e falhas num contrato próprio. | Sim |
 | Dados sensíveis | Omitir senha, CPF/CNPJ e dados de contato até definição de perfil e mascaramento. | O legado expõe dados sensíveis na interface. | Não |
-| Persistência de colunas | Nova preferência com namespace próprio. | Evita a API `GridConfig` que falhou e qualquer conflito com dados legados. | Não |
+| Persistência de colunas | Nova preferência com namespace próprio. | Evita a API `GridConfig` que falhou e qualquer conflito com dados legados. | Sim |
 | Semântica de filtros | Replicar somente após comparar amostra de resultados em homologação. | O filtro legado contém SQL/metadata dinâmicos e relações não verificadas no cliente. | Não |
 
 ## Dimensões implícitas
@@ -148,4 +156,6 @@ flowchart TD
 - [ ] Cada capacidade P1 possui fonte de dados, autorização e contrato de escrita ou bloqueio documentado.
 - [ ] Uma prova em homologação compara resultados do legado e da nova consulta para cenários representativos.
 - [ ] Nenhum teste de aceitação depende de `GridConfig.getSelectedColumns`.
-- [ ] A decisão de arquitetura e o tratamento de dados sensíveis foram aprovados antes da implementação.
+- [x] A decisão de arquitetura foi aprovada e está registrada no ADR-001.
+- [ ] O tratamento de dados sensíveis foi aprovado antes de habilitar o detalhe completo.
+- [ ] O contrato da fachada foi capturado no Om e aprovado antes de habilitar mutações.

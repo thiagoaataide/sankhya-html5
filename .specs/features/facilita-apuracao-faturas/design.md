@@ -1,7 +1,7 @@
-# Dashboard de Apuração de Faturas — Desenho técnico (rascunho)
+# Dashboard de Apuração de Faturas — Desenho técnico
 
 **Especificação:** `spec.md`  
-**Estado:** referência funcional aprovada com risco conhecido de divergência do fonte legado; aguarda homologação das integrações transacionais.
+**Estado:** aprovado para execução incremental; o desenho do contrato transacional está em andamento no T17.
 
 ## Local de implementação
 
@@ -29,14 +29,16 @@ O ZIP de publicação continuará tendo esses arquivos em sua raiz, como exige o
 - **Responsividade:** em telas estreitas, filtros recolhem, a tabela preserva colunas-chave com rolagem horizontal e as ações permanecem disponíveis no detalhe selecionado.
 - **Estados obrigatórios:** carregando, vazio, erro, sucesso de ação, conflito de atualização e ausência de permissão; todos com texto claro, foco visível e uso por teclado.
 
-## Recomendação
+## Decisão adotada
 
-Construir uma solução nova e isolada em duas entregas:
+Construir uma solução nova e isolada em duas fronteiras, seguindo o padrão de migração incremental (Strangler Fig):
 
 1. **Dashboard/gadget HTML5 de consulta**, filtros, seleção, informações não sensíveis e exportação. Ele não usa a grade Angular, `GridConfig` nem o código web legado.
-2. **Fachada transacional própria** (no novo pacote) para salvar valor/vencimento, confirmar, solicitar nova auditoria e gerir anexos. Ela encapsula regras e retorna erros de negócio ao navegador. A UI somente chama essa fachada após validar o contrato em homologação.
+2. **Fachada transacional própria**, em novo pacote de backend da Facilita, para salvar valor/vencimento, confirmar, solicitar nova auditoria, gerir anexos e consultar workflow. Ela encapsula regras e retorna erros de negócio ao navegador. A UI somente chama essa fachada após validar o contrato em homologação.
 
 O gadget pode atender a consulta rapidamente. Para substituir integralmente a tela, a fachada é necessária; depender diretamente dos serviços legados `ApuracaoSP`, `AnexoSistemaSP` e `BHAnexoServiceSP` não é seguro enquanto o artefato instalado não for identificado e testado.
+
+O layout não precisa reproduzir pixel a pixel a tela atual. A equivalência será medida pelos requisitos APU-01 a APU-16, pela autorização do usuário e pela consistência dos estados após cada operação.
 
 ## Alternativas
 
@@ -44,7 +46,7 @@ O gadget pode atender a consulta rapidamente. Para substituir integralmente a te
 | --- | --- | --- | --- |
 | Corrigir a tela Angular atual | Menor mudança aparente. | Requer republicar fonte não comprovado; mantém API obsoleta. | Rejeitada para este escopo. |
 | Gadget HTML5 somente com consultas | Isolado, sem `sk-datagrid`, rápido para recuperar leitura. | Não resolve com segurança anexos e transições de estado. | Viável como fase 1. |
-| Gadget HTML5 + fachada nova | Isola legado e mantém a tela dentro do ERP; comandos auditáveis. | Exige desenvolvimento e homologação de contratos. | Recomendação. |
+| Gadget HTML5 + fachada nova | Isola legado e mantém a tela dentro do ERP; comandos auditáveis. | Exige desenvolvimento e homologação de contratos. | **Adotada.** |
 | Tela HTML5 customizada em add-on novo | Maior liberdade para UX complexa, anexos e edição. | Mais trabalho de UI; não é um gadget de dashboard. | Plano B se o gadget limitar operações. |
 
 ## Arquitetura proposta
@@ -63,19 +65,35 @@ flowchart LR
     UI --> N[Abrir tela/tarefa nativa]
 ```
 
+## Desenho de execução
+
+```mermaid
+flowchart TD
+    A[T17: contrato da fachada] --> B[T18: pacote e endpoint da fachada]
+    B --> C[T12: integrar edição]
+    B --> D[T13: integrar anexos]
+    B --> E[T14: integrar confirmação e auditoria]
+    C --> F[T21: UAT transacional]
+    D --> F
+    E --> F
+    F --> G[T16: empacotar e decidir rollout]
+```
+
+O T17 é a primeira tarefa de execução desta decisão. Ele não implementa endpoint: consolida entradas, respostas, autorização, concorrência, idempotência e evidências a capturar. O backend só começa no T18 após o contrato mínimo ser aprovado pelo responsável do cliente. O arquivo [`contracts.md`](contracts.md) é o artefato vivo desse trabalho.
+
 ## Componentes e contratos
 
 | Componente | Responsabilidade | Dependências / validações |
 | --- | --- | --- |
 | `tdb_dashboard.xml` | Define nível, permissões e parâmetros iniciais do gadget. | Confirmar versão mínima do Om e empacotamento aceito pelo cliente. |
-| `apuracao.jsp` + JS/CSS | Renderiza filtro, tabela própria, painel da seleção, modal e estados de erro. | `snk:load`; nenhuma dependência de Angular/`GridConfig`. |
+| `tdb_partida.jsp` + JS/CSS | Renderiza filtro, tabela própria, painel da seleção, modal e estados de erro. | `snk:load`; nenhuma dependência de Angular/`GridConfig`. |
 | Consulta de lista | Retorna colunas explicitamente permitidas, paginação, ordenação e filtros. | Revisar SQL, índices e filtro por permissão antes de liberar. |
-| `ApuracaoDashboardSP.listarDetalhe` | Retorna apenas dados do registro selecionado e mascarados conforme perfil. | Não retornar senha nem credencial por padrão. |
-| `ApuracaoDashboardSP.atualizar` | Atualiza somente `VALOR` e `DTVENC`; usa versão/estado para detectar concorrência. | Regras de valor/vencimento a confirmar. |
+| `ApuracaoDashboardSP.listarDetalhe` | Retorna apenas dados do registro selecionado e mascarados conforme perfil. | Não retornar senha nem credencial por padrão; contrato em `contracts.md`. |
+| `ApuracaoDashboardSP.atualizar` | Atualiza somente `VALOR` e `DTVENC`; usa versão/estado para detectar concorrência. | Regras de valor/vencimento a confirmar; sem update direto no JSP. |
 | `ApuracaoDashboardSP.confirmar` | Encapsula APU-10 e APU-11. | Deve ser atômico e devolver erro de negócio; não engolir exceções. |
 | `ApuracaoDashboardSP.solicitarNovaAuditoria` | Encapsula APU-12 e valida `BH_NOVAAUDIT`. | Deve registrar usuário, antes/depois e motivo. |
-| Adaptador de anexos | Valida arquivo/tipo, envia, associa à apuração e abre visualização autorizada. | Validar tamanho, extensão/MIME, antivírus e contrato do repositório de anexos. |
-| Integração de workflow | Consulta tarefa pendente e abre a tela Sankhya nativa. | Validar `IDINSTPRN` e ausência de tarefa. |
+| Adaptador de anexos | Valida arquivo/tipo, envia, associa à apuração e abre visualização autorizada. | Validar tamanho, extensão/MIME, antivírus e contrato do repositório de anexos antes do T20. |
+| Integração de workflow | Consulta tarefa pendente e abre a tela Sankhya nativa. | Validar `IDINSTPRN`, `IDINSTTAR` ou outro identificador antes do T20. |
 | Preferências da visão | Salva colunas e ordenação sob chave nova, por usuário. | Não ler/gravar o namespace de `GridConfig` legado. |
 
 ## Fluxos transacionais
@@ -142,10 +160,11 @@ sequenceDiagram
 ## Portões antes de implementar
 
 1. Registrar a versão do Sankhya Om do cliente para reproduzir a homologação, sem bloquear o uso do fonte como referência funcional.
-2. Capturar, em homologação, requests/responses das ações: listar, salvar, anexar, confirmar, nova auditoria e abrir tarefa.
+2. Capturar, em homologação, requests/responses das ações: listar, salvar, anexar, confirmar, nova auditoria e abrir tarefa. Esse é o entregável do T17/T2 combinado.
 3. Comparar uma amostra de ao menos 20 registros, incluindo pendente, confirmado, com anexo, sem valor e com tarefa.
 4. Aprovar a matriz de dados sensíveis e os perfis de acesso.
-5. Escolher: gadget com fachada (recomendado) ou tela HTML5 customizada caso anexos/edição não caibam no gadget.
+5. Confirmar o mecanismo de registro do novo pacote e o nome físico dos endpoints da fachada.
+6. Usar a tela HTML5 customizada como plano B caso anexos/edição não caibam no gadget.
 
 ## Referências externas verificadas
 

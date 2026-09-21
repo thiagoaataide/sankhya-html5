@@ -6,8 +6,11 @@
     var selectedRow = null;
     var selectedDetail = null;
     var detailRequestSequence = 0;
+    var actionRequestSequence = 0;
     var sortState = { key: null, direction: 1 };
     var visibleColumns = { 0: true, 1: true, 2: true, 3: true, 4: true, 5: true, 6: true, 7: true };
+    var facadeConfig = window.FACILITA_APURACAO_FACADE || {};
+    var facadePrefix = facadeConfig.servicePrefix || "facilitatelecom@ApuracaoDashboardSP";
     var numberFormat = new Intl.NumberFormat("pt-BR", {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2
@@ -58,6 +61,7 @@
                 idinstprn: data.idinstprn || "",
                 nufila: data.nufila || "",
                 plano: data.plano || "",
+                adDhalter: data.adDhalter || "",
                 possuiAnexo: flag(data.possuiAnexo)
             };
         });
@@ -68,6 +72,8 @@
         var field = document.getElementById("filter-field");
         var refresh = document.getElementById("btn-refresh");
         var exportButton = document.getElementById("btn-export");
+        var editForm = document.getElementById("detail-edit");
+        var uploadButton = document.getElementById("btn-upload-attachment");
 
         if (search) {
             search.addEventListener("input", applyFilters);
@@ -82,6 +88,15 @@
         }
         if (exportButton) {
             exportButton.addEventListener("click", exportCsv);
+        }
+        if (editForm) {
+            editForm.addEventListener("submit", function (event) {
+                event.preventDefault();
+                updateSelectedApuracao();
+            });
+        }
+        if (uploadButton) {
+            uploadButton.addEventListener("click", uploadSelectedAttachment);
         }
         document.addEventListener("facilita-apuracao:selected", function (event) {
             loadDetail(event.detail);
@@ -318,6 +333,7 @@
             idinstprn: data.idinstprn || "",
             nufila: data.nufila || "",
             plano: data.plano || "",
+            adDhalter: data.adDhalter || "",
             possuiAnexo: flag(data.possuiAnexo)
         };
     }
@@ -357,6 +373,8 @@
             item.appendChild(value);
             body.appendChild(item);
         });
+        setInputValue("edit-dtvenc", detail.dtvenc);
+        setInputValue("edit-valor", detail.valor ? String(detail.valor) : "");
         setText("detail-state", detail.confirmado === "S" ? "Confirmada" : "Pendente");
         setDetailActions(detail);
     }
@@ -365,28 +383,304 @@
         var task = document.getElementById("btn-open-task");
         var attachment = document.getElementById("btn-view-attachment");
         var confirm = document.getElementById("btn-confirm");
+        var save = document.getElementById("btn-save-edit");
+        var upload = document.getElementById("btn-upload-attachment");
         if (task) {
-            task.disabled = true;
-            task.title = detail && detail.idinstprn ? "Aguardando contrato homologado de abertura da tarefa" : "Sem processo de workflow";
+            task.disabled = !detail || !detail.idinstprn;
+            task.title = detail && detail.idinstprn ? "Consultar tarefa pendente" : "Sem processo de workflow";
             task.onclick = function () {
-                setDetailMessage("A abertura exige o identificador de tarefa retornado por ApuracaoSP.getTarefa; contrato ainda não homologado no HTML5.");
+                openSelectedTask();
             };
         }
         if (attachment) {
             attachment.disabled = !detail || detail.possuiAnexo !== "S";
             attachment.onclick = function () {
-                if (!selectedDetail || selectedDetail.possuiAnexo !== "S") {
-                    return;
-                }
-                window.open("/facilitatelecom/visualizadorArquivos.facilita?nuApuracao=" + encodeURIComponent(selectedDetail.nuapuracao), "_blank", "noopener");
+                viewSelectedAttachments();
             };
         }
         if (confirm) {
-            confirm.disabled = true;
-            confirm.title = "Aguardando fachada transacional homologada";
+            confirm.disabled = !detail;
+            confirm.textContent = detail && detail.confirmado === "S" ? "Solicitar nova auditoria" : "Confirmar";
+            confirm.title = detail && detail.confirmado === "S" ? "Solicitar nova auditoria" : "Confirmar apuração";
             confirm.onclick = function () {
-                setDetailMessage("A confirmação requer fachada transacional homologada; nenhuma alteração foi enviada.");
+                confirmSelectedApuracao();
             };
+        }
+        if (save) {
+            save.disabled = !detail;
+        }
+        if (upload) {
+            upload.disabled = !detail;
+        }
+    }
+
+    function callFacade(operation, payload) {
+        var serviceName = facadePrefix + "." + operation;
+        var requestBody = { request: payload || {} };
+        if (window.ServiceProxy && typeof window.ServiceProxy.callService === "function") {
+            return new Promise(function (resolve, reject) {
+                window.ServiceProxy.callService(serviceName, requestBody).then(function (response) {
+                    try {
+                        resolve(readFacadeResponse(response));
+                    } catch (error) {
+                        reject(error);
+                    }
+                }, reject);
+            });
+        }
+
+        var url = window.location.origin + "/mge/service.sbr?serviceName=" + encodeURIComponent(serviceName) + "&outputType=json";
+        return fetch(url, {
+            method: "POST",
+            credentials: "same-origin",
+            headers: { "Content-Type": "application/json;charset=UTF-8", Accept: "application/json" },
+            body: JSON.stringify({ serviceName: serviceName, requestBody: requestBody })
+        }).then(function (response) {
+            return response.text().then(function (text) {
+                var data;
+                try {
+                    data = text ? JSON.parse(text) : {};
+                } catch (error) {
+                    throw createFacadeError("A fachada retornou uma resposta inválida.", "INTEGRATION");
+                }
+                if (!response.ok) {
+                    throw createFacadeError("Não foi possível concluir a operação.", "INTEGRATION", data.correlationId);
+                }
+                return readFacadeResponse(data);
+            });
+        });
+    }
+
+    function readFacadeResponse(response) {
+        var data = response || {};
+        if (data.status !== undefined && String(data.status) !== "1") {
+            throw createFacadeError(data.statusMessage || "A fachada recusou a operação.", "INTEGRATION", data.correlationId);
+        }
+        var body = data.responseBody !== undefined ? data.responseBody : data;
+        if (body && body.ok === false) {
+            throw createFacadeError(body.error && body.error.message || "A operação foi recusada.", body.error && body.error.code, body.correlationId);
+        }
+        if (body && body.ok === true) {
+            return body.data;
+        }
+        if (body && body.data !== undefined && body.error === null) {
+            return body.data;
+        }
+        return body && body.response !== undefined ? body.response : body;
+    }
+
+    function createFacadeError(message, code, correlationId) {
+        var error = new Error(message || "Falha na fachada transacional.");
+        error.code = code || "INTERNAL";
+        error.correlationId = correlationId || "FA-" + Date.now();
+        return error;
+    }
+
+    function updateSelectedApuracao() {
+        if (!selectedDetail) {
+            return;
+        }
+        var date = getInputValue("edit-dtvenc");
+        var valueText = getInputValue("edit-valor").replace(",", ".");
+        var value = Number(valueText);
+        if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+            setDetailMessage("Informe um vencimento válido.");
+            return;
+        }
+        if (!valueText || !isFinite(value) || value < 0) {
+            setDetailMessage("Informe um valor maior ou igual a zero.");
+            return;
+        }
+        var requestId = ++actionRequestSequence;
+        setActionBusy(true, "Salvando alterações…");
+        callFacade("atualizar", {
+            nuApuracao: selectedDetail.nuapuracao,
+            dtvenc: date || null,
+            valor: value,
+            version: selectedDetail.adDhalter || null,
+            idempotencyKey: "atualizar-" + selectedDetail.nuapuracao + "-" + Date.now()
+        }).then(function () {
+            if (requestId !== actionRequestSequence) {
+                return;
+            }
+            setDetailMessage("Alterações salvas. Recarregando a apuração…");
+            reloadAfterAction();
+        }).catch(function (error) {
+            if (requestId === actionRequestSequence) {
+                showActionError(error, "Não foi possível salvar as alterações.");
+            }
+        }).finally(function () {
+            setActionBusy(false);
+        });
+    }
+
+    function confirmSelectedApuracao() {
+        if (!selectedDetail) {
+            return;
+        }
+        var operation = selectedDetail.confirmado === "S" ? "solicitarNovaAuditoria" : "confirmar";
+        var message = selectedDetail.confirmado === "S"
+            ? "Solicitar nova auditoria para esta apuração?"
+            : "Confirmar esta apuração?";
+        if (!window.confirm(message)) {
+            return;
+        }
+        var requestId = ++actionRequestSequence;
+        setActionBusy(true, "Processando operação…");
+        callFacade(operation, {
+            nuApuracao: selectedDetail.nuapuracao,
+            version: selectedDetail.adDhalter || null,
+            idempotencyKey: operation + "-" + selectedDetail.nuapuracao + "-" + Date.now()
+        }).then(function () {
+            if (requestId !== actionRequestSequence) {
+                return;
+            }
+            setDetailMessage("Operação concluída. Recarregando a apuração…");
+            reloadAfterAction();
+        }).catch(function (error) {
+            if (requestId === actionRequestSequence) {
+                showActionError(error, "Não foi possível concluir a operação.");
+            }
+        }).finally(function () {
+            setActionBusy(false);
+        });
+    }
+
+    function uploadSelectedAttachment() {
+        if (!selectedDetail) {
+            return;
+        }
+        var fileInput = document.getElementById("attachment-file");
+        var typeInput = document.getElementById("attachment-type");
+        var file = fileInput && fileInput.files ? fileInput.files[0] : null;
+        var type = typeInput ? typeInput.value : "";
+        if (!file) {
+            setDetailMessage("Selecione um arquivo antes de enviar.");
+            return;
+        }
+        if (!type) {
+            setDetailMessage("Selecione o tipo do anexo antes de enviar.");
+            return;
+        }
+        var sessionKey = "APURACAO_DASHBOARD_" + selectedDetail.nuapuracao + "_" + Date.now();
+        var formData = new FormData();
+        formData.append("arquivo", file, file.name || "anexo");
+        setActionBusy(true, "Enviando anexo…");
+        fetch(window.location.origin + "/mge/sessionUpload.mge?sessionkey=" + encodeURIComponent(sessionKey) + "&fitem=S&salvar=S&useCache=N", {
+            method: "POST",
+            credentials: "same-origin",
+            body: formData
+        }).then(function (response) {
+            if (!response.ok) {
+                throw createFacadeError("O upload do arquivo foi recusado.", "INTEGRATION");
+            }
+            return callFacade("anexar", {
+                nuApuracao: selectedDetail.nuapuracao,
+                sessionKey: sessionKey,
+                nameAttach: file.name || "anexo",
+                tipo: type,
+                version: selectedDetail.adDhalter || null,
+                idempotencyKey: "anexar-" + selectedDetail.nuapuracao + "-" + sessionKey
+            });
+        }).then(function () {
+            setDetailMessage("Anexo associado. Recarregando a apuração…");
+            reloadAfterAction();
+        }).catch(function (error) {
+            showActionError(error, "Não foi possível associar o anexo.");
+        }).finally(function () {
+            setActionBusy(false);
+        });
+    }
+
+    function viewSelectedAttachments() {
+        if (!selectedDetail || selectedDetail.possuiAnexo !== "S") {
+            return;
+        }
+        setActionBusy(true, "Consultando anexos…");
+        callFacade("listarAnexos", { nuApuracao: selectedDetail.nuapuracao }).then(function (data) {
+            var files = data && Array.isArray(data.files) ? data.files : Array.isArray(data) ? data : [];
+            var first = files[0] || data;
+            var url = first && (first.url || first.downloadUrl);
+            if (!url) {
+                throw createFacadeError("A fachada não retornou um visualizador autorizado.", "INTEGRATION");
+            }
+            window.open(url, "_blank", "noopener");
+        }).catch(function (error) {
+            showActionError(error, "Não foi possível abrir os anexos.");
+        }).finally(function () {
+            setActionBusy(false);
+        });
+    }
+
+    function openSelectedTask() {
+        if (!selectedDetail || !selectedDetail.idinstprn) {
+            setDetailMessage("Não há tarefa pendente para esta apuração.");
+            return;
+        }
+        setActionBusy(true, "Consultando tarefa…");
+        callFacade("getTarefa", { nuApuracao: selectedDetail.nuapuracao }).then(function (data) {
+            var taskId = data && (data.idInstTar || data.IDINSTTAR || data.idinsttar || data.value);
+            taskId = taskId || data;
+            if (!taskId) {
+                throw createFacadeError("Não há tarefa pendente para esta apuração.", "BUSINESS_RULE");
+            }
+            var openApp = typeof window.openApp === "function"
+                ? window.openApp
+                : window.parent && typeof window.parent.openApp === "function" ? window.parent.openApp.bind(window.parent) : null;
+            if (!openApp) {
+                throw createFacadeError("A abertura de tarefas não está disponível neste contexto.", "INTEGRATION");
+            }
+            openApp("br.com.sankhya.workflow.listatarefa", {
+                IDINSTPRN: selectedDetail.idinstprn,
+                IDINSTTAR: taskId
+            });
+        }).catch(function (error) {
+            showActionError(error, "Não foi possível abrir a tarefa.");
+        }).finally(function () {
+            setActionBusy(false);
+        });
+    }
+
+    function setActionBusy(busy, message) {
+        ["btn-open-task", "btn-view-attachment", "btn-confirm", "btn-save-edit", "btn-upload-attachment"].forEach(function (id) {
+            var button = document.getElementById(id);
+            if (button) {
+                button.dataset.actionDisabled = busy ? "S" : "N";
+                if (busy) {
+                    button.disabled = true;
+                }
+            }
+        });
+        if (!busy) {
+            setDetailActions(selectedDetail);
+        }
+        if (message) {
+            setDetailMessage(message);
+        }
+    }
+
+    function showActionError(error, fallback) {
+        var correlationId = error && error.correlationId ? error.correlationId : "FA-" + Date.now();
+        var message = error && error.message ? error.message : fallback;
+        setDetailMessage(message + " Código: " + correlationId);
+        console.error("[facilita-apuracao] operação transacional", error);
+    }
+
+    function reloadAfterAction() {
+        window.setTimeout(function () {
+            window.location.reload();
+        }, 700);
+    }
+
+    function getInputValue(id) {
+        var input = document.getElementById(id);
+        return input ? String(input.value || "").trim() : "";
+    }
+
+    function setInputValue(id, value) {
+        var input = document.getElementById(id);
+        if (input) {
+            input.value = value || "";
         }
     }
 
