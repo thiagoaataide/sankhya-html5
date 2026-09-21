@@ -1,7 +1,7 @@
 # Dashboard de Apuração de Faturas — Tarefas
 
 **Design:** `design.md`  
-**Status:** em execução — T4, T5, T6, T7, T8 e T9 concluídas.
+**Status:** em execução — T4, T5, T6, T7, T8, T9, T10 e T15 concluídas; T11 parcial; T12–T14 e T16 bloqueadas por contratos transacionais ainda não homologados.
 
 ## Protocolo de validação
 
@@ -224,6 +224,8 @@ Fase 4: T9 + T12 + T13 + T14 + T15 → T16
 **Tests:** manual — UAT do solicitante  
 **Gate:** UAT de consulta
 
+**Status:** ✅ Concluída — payload somente leitura criado em `facilita/apuracao-faturas/detalhe_payload.jsp`, com chave numérica validada e whitelist de campos não sensíveis; execução SQL pendente de UAT.
+
 ### T11: Exibir detalhe e abrir tarefa nativa
 
 **What:** Buscar detalhe sob demanda, exibir campos autorizados e abrir a tarefa pendente pela API nativa quando disponível.  
@@ -239,6 +241,8 @@ Fase 4: T9 + T12 + T13 + T14 + T15 → T16
 
 **Tests:** manual — UAT do solicitante  
 **Gate:** UAT de consulta
+
+**Status:** ⚠️ Parcial — detalhe assíncrono com proteção contra respostas obsoletas e visualização de anexos implementado; abertura de tarefa permanece bloqueada até homologar o retorno de `ApuracaoSP.getTarefa`/`IDINSTTAR`.
 
 ### Fase 3 — Operações e exportação
 

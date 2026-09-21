@@ -4,6 +4,8 @@
     var rows = [];
     var filteredRows = [];
     var selectedRow = null;
+    var selectedDetail = null;
+    var detailRequestSequence = 0;
     var sortState = { key: null, direction: 1 };
     var visibleColumns = { 0: true, 1: true, 2: true, 3: true, 4: true, 5: true, 6: true, 7: true };
     var numberFormat = new Intl.NumberFormat("pt-BR", {
@@ -81,6 +83,10 @@
         if (exportButton) {
             exportButton.addEventListener("click", exportCsv);
         }
+        document.addEventListener("facilita-apuracao:selected", function (event) {
+            loadDetail(event.detail);
+        });
+        document.addEventListener("facilita-apuracao:cleared", clearDetailSelection);
         Array.prototype.forEach.call(document.querySelectorAll(".sort-trigger"), function (trigger) {
             trigger.addEventListener("click", function () {
                 sortBy(trigger.getAttribute("data-sort"));
@@ -230,6 +236,176 @@
         }));
     }
 
+    function loadDetail(row) {
+        var sequence = ++detailRequestSequence;
+        var panel = document.getElementById("detail-panel");
+        var empty = document.getElementById("detail-empty");
+        var body = document.getElementById("detail-body");
+        if (!panel || !empty || !body) {
+            return;
+        }
+        selectedDetail = null;
+        empty.hidden = true;
+        panel.hidden = false;
+        setText("detail-title", "Apuração " + row.nuapuracao);
+        setText("detail-state", "Carregando");
+        body.textContent = "Carregando detalhe...";
+        setDetailActions(null);
+        clearDetailMessage();
+
+        var base = window.FACILITA_APURACAO_BASE || "";
+        var url = base + "/detalhe_payload.jsp?nuapuracao=" + encodeURIComponent(row.nuapuracao);
+        fetch(url, { credentials: "same-origin", headers: { Accept: "text/html" } })
+            .then(function (response) {
+                if (!response.ok) {
+                    throw new Error("HTTP " + response.status);
+                }
+                return response.text();
+            })
+            .then(function (html) {
+                if (sequence !== detailRequestSequence) {
+                    return;
+                }
+                var documentResponse = new DOMParser().parseFromString(html, "text/html");
+                var detailElement = documentResponse.querySelector(".detail-row");
+                if (!detailElement) {
+                    throw new Error("Apuração não encontrada");
+                }
+                selectedDetail = readDetail(detailElement);
+                renderDetail(selectedDetail);
+            })
+            .catch(function (error) {
+                if (sequence !== detailRequestSequence) {
+                    return;
+                }
+                body.textContent = "Não foi possível carregar o detalhe.";
+                setText("detail-state", "Indisponível");
+                setDetailMessage("A consulta do detalhe falhou. Código: FA-D" + Date.now());
+                console.error("[facilita-apuracao] detalhe", error);
+            });
+    }
+
+    function clearDetailSelection() {
+        detailRequestSequence += 1;
+        selectedDetail = null;
+        var panel = document.getElementById("detail-panel");
+        var empty = document.getElementById("detail-empty");
+        if (panel) {
+            panel.hidden = true;
+        }
+        if (empty) {
+            empty.hidden = false;
+        }
+    }
+
+    function readDetail(element) {
+        var data = element.dataset;
+        return {
+            nuapuracao: data.nuapuracao || "",
+            codconta: data.codconta || "",
+            numcontrato: data.numcontrato || "",
+            nunota: data.nunota || "",
+            sequenciacon: data.sequenciacon || "",
+            referencia: data.referencia || "",
+            referenciaadiada: data.referenciaadiada || "",
+            dtvenc: data.dtvenc || "",
+            valor: parseNumber(data.valor),
+            valorref: parseNumber(data.valorref),
+            confirmado: flag(data.confirmado),
+            auditoriafinalizada: flag(data.auditoriafinalizada),
+            emailenviado: flag(data.emailenviado),
+            faturamentoliberado: flag(data.faturamentoliberado),
+            idinstprn: data.idinstprn || "",
+            nufila: data.nufila || "",
+            plano: data.plano || "",
+            possuiAnexo: flag(data.possuiAnexo)
+        };
+    }
+
+    function renderDetail(detail) {
+        var labels = [
+            ["Conta", detail.codconta],
+            ["Contrato", detail.numcontrato],
+            ["Nota de faturamento", detail.nunota],
+            ["Sequência contratual", detail.sequenciacon],
+            ["Referência", formatDate(detail.referencia)],
+            ["Referência adiada", formatDate(detail.referenciaadiada)],
+            ["Vencimento", formatDate(detail.dtvenc)],
+            ["Valor", numberFormat.format(detail.valor || 0)],
+            ["Valor de referência", numberFormat.format(detail.valorref || 0)],
+            ["Auditoria finalizada", detail.auditoriafinalizada === "S" ? "Sim" : "Não"],
+            ["E-mail enviado", detail.emailenviado === "S" ? "Sim" : "Não"],
+            ["Faturamento liberado", detail.faturamentoliberado === "S" ? "Sim" : "Não"],
+            ["Plano", detail.plano],
+            ["Anexo", detail.possuiAnexo === "S" ? "Sim" : "Não"]
+        ];
+        var body = document.getElementById("detail-body");
+        if (!body) {
+            return;
+        }
+        body.textContent = "";
+        labels.forEach(function (entry) {
+            var item = document.createElement("div");
+            var label = document.createElement("span");
+            var value = document.createElement("strong");
+            item.className = "detail-grid__item";
+            label.className = "detail-grid__label";
+            value.className = "detail-grid__value";
+            label.textContent = entry[0];
+            value.textContent = entry[1] || "—";
+            item.appendChild(label);
+            item.appendChild(value);
+            body.appendChild(item);
+        });
+        setText("detail-state", detail.confirmado === "S" ? "Confirmada" : "Pendente");
+        setDetailActions(detail);
+    }
+
+    function setDetailActions(detail) {
+        var task = document.getElementById("btn-open-task");
+        var attachment = document.getElementById("btn-view-attachment");
+        var confirm = document.getElementById("btn-confirm");
+        if (task) {
+            task.disabled = true;
+            task.title = detail && detail.idinstprn ? "Aguardando contrato homologado de abertura da tarefa" : "Sem processo de workflow";
+            task.onclick = function () {
+                setDetailMessage("A abertura exige o identificador de tarefa retornado por ApuracaoSP.getTarefa; contrato ainda não homologado no HTML5.");
+            };
+        }
+        if (attachment) {
+            attachment.disabled = !detail || detail.possuiAnexo !== "S";
+            attachment.onclick = function () {
+                if (!selectedDetail || selectedDetail.possuiAnexo !== "S") {
+                    return;
+                }
+                window.open("/facilitatelecom/visualizadorArquivos.facilita?nuApuracao=" + encodeURIComponent(selectedDetail.nuapuracao), "_blank", "noopener");
+            };
+        }
+        if (confirm) {
+            confirm.disabled = true;
+            confirm.title = "Aguardando fachada transacional homologada";
+            confirm.onclick = function () {
+                setDetailMessage("A confirmação requer fachada transacional homologada; nenhuma alteração foi enviada.");
+            };
+        }
+    }
+
+    function setDetailMessage(message) {
+        var element = document.getElementById("detail-message");
+        if (element) {
+            element.hidden = false;
+            element.textContent = message;
+        }
+    }
+
+    function clearDetailMessage() {
+        var element = document.getElementById("detail-message");
+        if (element) {
+            element.hidden = true;
+            element.textContent = "";
+        }
+    }
+
     function statusCell(row) {
         var cell = document.createElement("td");
         var badge = document.createElement("span");
@@ -323,6 +499,9 @@
                     visibleColumns[index] = preferences[index];
                 }
             });
+            if (!Object.keys(visibleColumns).some(function (index) { return visibleColumns[index]; })) {
+                visibleColumns[0] = true;
+            }
             Array.prototype.forEach.call(document.querySelectorAll(".column-picker input[data-column]"), function (checkbox) {
                 checkbox.checked = visibleColumns[checkbox.getAttribute("data-column")];
             });
