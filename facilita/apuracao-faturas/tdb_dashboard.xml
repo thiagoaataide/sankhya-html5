@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gadget>
+    <prompt-parameters>
+        <parameter id="P_REFERENCIA" description="M&#234;s de refer&#234;ncia" metadata="date"
+                   required="false" keep-last="true" keep-date="false"
+                   show-inactives="false" label="M&#234;s de refer&#234;ncia" order="0"/>
+        <parameter id="P_SOMENTE_PENDENTES" description="Somente pendentes"
+                   metadata="singleList:Text" listType="text" required="true"
+                   keep-last="true" keep-date="false" show-inactives="false"
+                   label="Somente pendentes" order="1">
+            <item value="S" label="Sim"/>
+            <item value="N" label="N&#227;o"/>
+        </parameter>
+        <parameter id="P_POSSUI_ANEXO" description="Possui anexo"
+                   metadata="singleList:Text" listType="text" required="true"
+                   keep-last="true" keep-date="false" show-inactives="false"
+                   label="Possui anexo" order="2">
+            <item value="N" label="N&#227;o"/>
+            <item value="S" label="Sim"/>
+        </parameter>
+    </prompt-parameters>
+    <level id="lvl_facilita_apuracao" description="Apura&#231;&#227;o de Faturas">
+        <container orientacao="V" tamanhoRelativo="100">
+            <container orientacao="V" tamanhoRelativo="100">
+                <html5component id="html5_facilita_apuracao" entryPoint="tdb_partida.jsp"/>
+            </container>
+        </container>
+    </level>
+</gadget>
