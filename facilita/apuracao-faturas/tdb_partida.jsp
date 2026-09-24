@@ -15,7 +15,11 @@
 <snk:load>
     <jsp:include page="dados.jsp"/>
     <script>window.FACILITA_APURACAO_BASE = "${BASE_FOLDER}";</script>
-    <script>window.FACILITA_APURACAO_FACADE = { servicePrefix: "facilitatelecom@ApuracaoDashboardSP" };</script>
+    <script>window.FACILITA_APURACAO_FACADE = {
+        appKey: "0bace5b4-6687-4507-9093-a80a82a03bcb",
+        serviceName: "ApuracaoDashboardSP",
+        servicePath: "/mge/service.sbr"
+    };</script>
     <script src="${BASE_FOLDER}/javascript/script.js"></script>
 </snk:load>
 
@@ -63,7 +67,8 @@
         <div class="status-strip__message" id="state-message">Preparando consulta...</div>
     </section>
 
-    <section class="panel" aria-labelledby="grid-title">
+    <div class="workbench">
+    <section class="panel workbench__list" aria-labelledby="grid-title">
         <div class="panel__head">
             <div>
                 <span class="eyebrow">LISTA PRINCIPAL</span>
@@ -84,6 +89,22 @@
                     </div>
                 </details>
                 <span class="muted" id="grid-meta">Uma linha por apura&ccedil;&atilde;o</span>
+            </div>
+        </div>
+        <div class="pagination-bar" id="pagination-bar" aria-label="Pagina&ccedil;&atilde;o da lista">
+            <label class="filter-control pagination-bar__size" for="page-size">
+                <span>Registros por p&aacute;gina</span>
+                <select id="page-size" autocomplete="off">
+                    <option value="15" selected>15</option>
+                    <option value="25">25</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                </select>
+            </label>
+            <div class="pagination-bar__nav">
+                <button type="button" class="btn btn--quiet" id="page-prev" disabled>Anterior</button>
+                <span id="page-status" class="pagination-bar__status">P&aacute;gina 1 de 1</span>
+                <button type="button" class="btn btn--quiet" id="page-next" disabled>Pr&oacute;xima</button>
             </div>
         </div>
         <div class="table-wrap" tabindex="0">
@@ -114,9 +135,10 @@
         </div>
     </section>
 
+    <aside class="workbench__aside" aria-label="Detalhe da apura&ccedil;&atilde;o">
     <section id="detail-empty" class="detail-empty" aria-live="polite">
         <span class="eyebrow">DETALHE</span>
-        <p>Selecione uma apura&ccedil;&atilde;o para consultar seus dados e a&ccedil;&otilde;es.</p>
+        <p>Selecione uma apura&ccedil;&atilde;o na lista para consultar dados e a&ccedil;&otilde;es.</p>
     </section>
 
     <section id="detail-panel" class="detail-panel" hidden aria-labelledby="detail-title">
@@ -173,6 +195,8 @@
         </div>
         <div id="detail-message" class="inline-message" role="status" aria-live="polite" hidden></div>
     </section>
+    </aside>
+    </div>
 </main>
 </body>
 </html>

@@ -41,8 +41,9 @@ O gadget não chamará diretamente os serviços legados para gravar dados. Enqua
 
 ### Negativas e compromissos
 
-- Será necessário desenvolver e publicar um novo pacote de backend, além do pacote HTML5.
-- T12–T14 ficam dependentes do contrato da fachada e da homologação de permissões, anexos e workflow.
+- Será necessário publicar o Add-on de backend em separado do pacote HTML5.
+- T12/T14 dependem do contrato e da homologação dos comandos principais;
+  anexos/workflow (T11/T13) têm dependência e gate próprios.
 - Haverá uma janela em que o gadget oferece consulta, mas as ações de escrita ainda não estão habilitadas.
 - A reversão inicial será retirar o gadget e reabrir a tela nativa; não haverá rollback por recompilação do legado.
 
@@ -50,3 +51,24 @@ O gadget não chamará diretamente os serviços legados para gravar dados. Enqua
 
 Reavaliar esta decisão se a homologação provar que o gadget não consegue abrir anexos/tarefas com segurança ou se a versão do Om não permitir o endpoint da fachada. Nesse caso, migrar as interações inviáveis para a tela HTML5 customizada prevista como plano B.
 
+## Adendo — recuperação read-first (2026-09-23)
+
+O solicitante confirmou o faseamento para recuperar a tela sem deslocar regras
+de negócio para o navegador:
+
+1. O gadget substitui a experiência quebrada e mantém a apresentação, filtros
+   e estado visual.
+2. Lista e detalhe podem continuar temporariamente em JSP server-side, somente
+   leitura, depois de comprovar parâmetros vinculados ou validados, projeção
+   allowlisted e autorização sob a sessão do Om. Se qualquer controle não
+   puder ser comprovado, a leitura passa para o Provider.
+3. A interface pequena do `ApuracaoDashboardSP` é a seam de toda mutação. O
+   backend concentra regras, autorização do usuário corrente, transação e
+   releitura; o JavaScript não grava diretamente em `BH_FACAPU`.
+4. Edição, confirmação e nova auditoria são habilitadas em fatias verticais.
+   Anexos e workflow continuam no escopo funcional, mas só bloqueiam o MVP se
+   o responsável pelo aceite confirmar que são indispensáveis para concluir
+   uma aprovação.
+
+Este adendo esclarece a sequência de entrega; não revoga a decisão original de
+manter as mutações atrás da fachada transacional.

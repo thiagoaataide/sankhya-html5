@@ -1,7 +1,8 @@
 # Dashboard de Apuração de Faturas — Desenho técnico
 
 **Especificação:** `spec.md`  
-**Estado:** aprovado para execução incremental; o desenho do contrato transacional está em andamento no T17.
+**Estado:** aprovado para execução read-first; T22 valida a consulta e T17
+consolida somente o contrato MVP de comandos.
 
 ## Local de implementação
 
@@ -38,6 +39,17 @@ Construir uma solução nova e isolada em duas fronteiras, seguindo o padrão de
 
 O gadget pode atender a consulta rapidamente. Para substituir integralmente a tela, a fachada é necessária; depender diretamente dos serviços legados `ApuracaoSP`, `AnexoSistemaSP` e `BHAnexoServiceSP` não é seguro enquanto o artefato instalado não for identificado e testado.
 
+Na recuperação inicial, `dados.jsp` e `detalhe_payload.jsp` podem permanecer
+como caminho de leitura somente se parâmetros, projeção e autorização forem
+validados no Om. A UI não tem autorização para decidir o escopo dos dados nem
+para gravar. Se a consulta JSP não passar esse gate, a lista/detalhe deve usar
+um endpoint de leitura autorizado da fachada antes de liberar o gadget.
+
+O Provider deve ser um módulo de interface pequena e implementação profunda:
+o gadget envia comandos sem conhecer JAPE, regras de estado, política de
+usuário ou detalhes de transação. Sua seam não inclui chamadas manuais de
+gravação do navegador.
+
 O layout não precisa reproduzir pixel a pixel a tela atual. A equivalência será medida pelos requisitos APU-01 a APU-16, pela autorização do usuário e pela consistência dos estados após cada operação.
 
 ## Alternativas
@@ -54,7 +66,7 @@ O layout não precisa reproduzir pixel a pixel a tela atual. A equivalência ser
 ```mermaid
 flowchart LR
     U[Usuário Sankhya autenticado] --> UI[Gadget HTML5 Apuração]
-    UI --> Q[Consultas parametrizadas e autorizadas]
+    UI --> Q[JSP somente leitura validada; se não, consulta autorizada do Provider]
     Q --> DB[(BH_FACAPU e relações)]
     UI --> S[ApuracaoDashboardSP]
     S --> R[Regras de apuração]
@@ -69,17 +81,24 @@ flowchart LR
 
 ```mermaid
 flowchart TD
+    R[T22: validar consulta read-first] --> S{JSP segura e autorizada?}
+    S -->|Sim| A
+    S -->|Não| Q[T5: consulta autorizada pelo Provider]
+    Q --> A
     A[T17: contrato da fachada] --> B[T18: pacote e endpoint da fachada]
     B --> C[T12: integrar edição]
-    B --> D[T13: integrar anexos]
+    F --> D[T11/T13: anexos e workflow, fase complementar]
     B --> E[T14: integrar confirmação e auditoria]
-    C --> F[T21: UAT transacional]
-    D --> F
+    C --> F[T21: UAT transacional do MVP]
     E --> F
     F --> G[T16: empacotar e decidir rollout]
 ```
 
-O T17 é a primeira tarefa de execução desta decisão. Ele não implementa endpoint: consolida entradas, respostas, autorização, concorrência, idempotência e evidências a capturar. O backend só começa no T18 após o contrato mínimo ser aprovado pelo responsável do cliente. O arquivo [`contracts.md`](contracts.md) é o artefato vivo desse trabalho.
+O T22 valida a consulta independentemente da publicação da fachada. O T17
+consolida somente o contrato MVP de edição, confirmação e nova auditoria; não
+espera captura de anexos/workflow. O T18 é implementado no repositório separado
+do Add-on e depende das tasks T15/T16 daquela feature. O arquivo
+[`contracts.md`](contracts.md) continua sendo o artefato vivo do contrato.
 
 ## Componentes e contratos
 
@@ -160,7 +179,8 @@ sequenceDiagram
 ## Portões antes de implementar
 
 1. Registrar a versão do Sankhya Om do cliente para reproduzir a homologação, sem bloquear o uso do fonte como referência funcional.
-2. Capturar, em homologação, requests/responses das ações: listar, salvar, anexar, confirmar, nova auditoria e abrir tarefa. Esse é o entregável do T17/T2 combinado.
+2. Capturar primeiro requests/responses e permissões de editar, confirmar e
+   nova auditoria; anexos e workflow têm captura e homologação próprias depois.
 3. Comparar uma amostra de ao menos 20 registros, incluindo pendente, confirmado, com anexo, sem valor e com tarefa.
 4. Aprovar a matriz de dados sensíveis e os perfis de acesso.
 5. Confirmar o mecanismo de registro do novo pacote e o nome físico dos endpoints da fachada.

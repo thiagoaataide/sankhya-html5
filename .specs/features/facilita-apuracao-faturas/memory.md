@@ -13,8 +13,9 @@
 1. A consulta permanece no gadget HTML5 e não usa Angular, `sk-datagrid` ou `GridConfig`.
 2. Operações de escrita serão expostas por uma nova fachada transacional (`ApuracaoDashboardSP`, nome lógico), em pacote de backend separado do legado.
 3. O gadget não chama diretamente `ApuracaoSP`, `AnexoSistemaSP` ou `BHAnexoServiceSP` para mutações.
-4. A migração seguirá etapas: leitura estável → contrato da fachada → fachada homologada → integração de ações → UAT e pacote.
+4. A entrega seguirá fatias verticais: leitura segura e estável primeiro; depois comandos de escrita pelo Provider; anexos e workflow ficam em fase separada, salvo se o aceite os tornar pré-requisitos.
 5. Senhas não fazem parte do detalhe. CPF/CNPJ, login e e-mail aguardam matriz de exposição por perfil.
+6. A consulta temporária em JSP é somente leitura e só pode ser usada após comprovar parâmetros vinculados ou validados, projeção allowlisted e autorização do usuário. JavaScript não grava diretamente em `BH_FACAPU`.
 
 ## Estado atual
 
@@ -25,7 +26,12 @@
 
 ## Próximo passo ativo
 
-**T17 — Consolidar o contrato da fachada transacional.** O contrato inicial e a evidência de dados já foram registrados; falta capturar/aprovar requests, respostas e permissões no Om do cliente antes de publicar o backend T18.
+**T22 — Homologar o caminho de consulta independente da fachada.** Validar
+lista, filtros e detalhe no Om, incluindo parâmetros e autorização. Se a JSP
+não comprovar esses controles, mover a leitura para uma consulta autorizada no
+Provider. Em seguida, recortar T17 para edição, confirmação e nova auditoria;
+não esperar anexos/workflow para recuperar a tela. Executar T23 antes do pacote
+para registrar se esses recursos são requisito do aceite.
 
 ## Riscos a não esquecer
 

@@ -1,0 +1,231 @@
+{
+  "info": {
+    "name": "Facilita — Apuração de Faturas",
+    "description": "Exemplos alinhados a `facilita/apuracao-faturas/javascript/script.js` e JSPs.\n\nPasta **Consulta validada**: coberta por `api/openapi.yaml`.\nPasta **Fachada (aguarda homologação T21)**: adaptadores prontos no JS; não publicados no OpenAPI até C09–C18.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "noauth"
+  },
+  "item": [
+    {
+      "name": "Consulta validada",
+      "item": [
+        {
+          "name": "Carregar gadget (lista embutida)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "text/html" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{baseFolder}}/tdb_partida.jsp?P_REFERENCIA=2026-09-01&P_SOMENTE_PENDENTES=S&P_POSSUI_ANEXO=N",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{baseFolder}}", "tdb_partida.jsp"],
+              "query": [
+                { "key": "P_REFERENCIA", "value": "2026-09-01", "description": "Mês de referência (tdb_dashboard.xml)" },
+                { "key": "P_SOMENTE_PENDENTES", "value": "S" },
+                { "key": "P_POSSUI_ANEXO", "value": "N" }
+              ]
+            },
+            "description": "Equivalente a abrir o nível do gadget. Lista em `#data-container .data-row` (`dados.jsp`)."
+          }
+        },
+        {
+          "name": "Detalhe da apuração (payload HTML)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "text/html" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{baseFolder}}/detalhe_payload.jsp?nuapuracao={{nuApuracao}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{baseFolder}}", "detalhe_payload.jsp"],
+              "query": [
+                { "key": "nuapuracao", "value": "{{nuApuracao}}" }
+              ]
+            },
+            "description": "`loadDetail()` em script.js — credentials same-origin."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Fachada (aguarda homologação T21)",
+      "description": "POST em `/mge/service.sbr` com corpo igual ao `fetch` de `callFacade()` quando `ServiceProxy` não está disponível.",
+      "item": [
+        {
+          "name": "atualizar",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json;charset=UTF-8" },
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"serviceName\": \"{{servicePrefix}}.atualizar\",\n  \"requestBody\": {\n    \"request\": {\n      \"nuApuracao\": \"{{nuApuracao}}\",\n      \"dtvenc\": \"2026-09-30\",\n      \"valor\": 150.75,\n      \"version\": \"{{version}}\",\n      \"idempotencyKey\": \"atualizar-{{nuApuracao}}-1710000000000\"\n    }\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/mge/service.sbr?serviceName={{servicePrefix}}.atualizar&outputType=json",
+              "host": ["{{baseUrl}}"],
+              "path": ["mge", "service.sbr"],
+              "query": [
+                { "key": "serviceName", "value": "{{servicePrefix}}.atualizar" },
+                { "key": "outputType", "value": "json" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "confirmar",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json;charset=UTF-8" },
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"serviceName\": \"{{servicePrefix}}.confirmar\",\n  \"requestBody\": {\n    \"request\": {\n      \"nuApuracao\": \"{{nuApuracao}}\",\n      \"version\": \"{{version}}\",\n      \"idempotencyKey\": \"confirmar-{{nuApuracao}}-1710000000000\"\n    }\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/mge/service.sbr?serviceName={{servicePrefix}}.confirmar&outputType=json",
+              "host": ["{{baseUrl}}"],
+              "path": ["mge", "service.sbr"],
+              "query": [
+                { "key": "serviceName", "value": "{{servicePrefix}}.confirmar" },
+                { "key": "outputType", "value": "json" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "solicitarNovaAuditoria",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json;charset=UTF-8" },
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"serviceName\": \"{{servicePrefix}}.solicitarNovaAuditoria\",\n  \"requestBody\": {\n    \"request\": {\n      \"nuApuracao\": \"{{nuApuracao}}\",\n      \"version\": \"{{version}}\",\n      \"idempotencyKey\": \"solicitarNovaAuditoria-{{nuApuracao}}-1710000000000\"\n    }\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/mge/service.sbr?serviceName={{servicePrefix}}.solicitarNovaAuditoria&outputType=json",
+              "host": ["{{baseUrl}}"],
+              "path": ["mge", "service.sbr"],
+              "query": [
+                { "key": "serviceName", "value": "{{servicePrefix}}.solicitarNovaAuditoria" },
+                { "key": "outputType", "value": "json" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "sessionUpload (pré-anexar)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "arquivo",
+                  "type": "file",
+                  "src": [],
+                  "description": "Campo `arquivo` como em uploadSelectedAttachment()"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/mge/sessionUpload.mge?sessionkey={{sessionKey}}&fitem=S&salvar=S&useCache=N",
+              "host": ["{{baseUrl}}"],
+              "path": ["mge", "sessionUpload.mge"],
+              "query": [
+                { "key": "sessionkey", "value": "{{sessionKey}}" },
+                { "key": "fitem", "value": "S" },
+                { "key": "salvar", "value": "S" },
+                { "key": "useCache", "value": "N" }
+              ]
+            },
+            "description": "Primeiro passo do fluxo de anexo; depois chamar `anexar` com o mesmo sessionKey."
+          }
+        },
+        {
+          "name": "anexar",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json;charset=UTF-8" },
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"serviceName\": \"{{servicePrefix}}.anexar\",\n  \"requestBody\": {\n    \"request\": {\n      \"nuApuracao\": \"{{nuApuracao}}\",\n      \"sessionKey\": \"{{sessionKey}}\",\n      \"nameAttach\": \"fatura-exemplo.pdf\",\n      \"tipo\": \"1\",\n      \"version\": \"{{version}}\",\n      \"idempotencyKey\": \"anexar-{{nuApuracao}}-{{sessionKey}}\"\n    }\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/mge/service.sbr?serviceName={{servicePrefix}}.anexar&outputType=json",
+              "host": ["{{baseUrl}}"],
+              "path": ["mge", "service.sbr"],
+              "query": [
+                { "key": "serviceName", "value": "{{servicePrefix}}.anexar" },
+                { "key": "outputType", "value": "json" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "listarAnexos",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json;charset=UTF-8" },
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"serviceName\": \"{{servicePrefix}}.listarAnexos\",\n  \"requestBody\": {\n    \"request\": {\n      \"nuApuracao\": \"{{nuApuracao}}\"\n    }\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/mge/service.sbr?serviceName={{servicePrefix}}.listarAnexos&outputType=json",
+              "host": ["{{baseUrl}}"],
+              "path": ["mge", "service.sbr"],
+              "query": [
+                { "key": "serviceName", "value": "{{servicePrefix}}.listarAnexos" },
+                { "key": "outputType", "value": "json" }
+              ]
+            },
+            "description": "Resposta esperada com `data.files[]` e `url` ou `downloadUrl` (viewSelectedAttachments)."
+          }
+        },
+        {
+          "name": "getTarefa",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json;charset=UTF-8" },
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"serviceName\": \"{{servicePrefix}}.getTarefa\",\n  \"requestBody\": {\n    \"request\": {\n      \"nuApuracao\": \"{{nuApuracao}}\"\n    }\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/mge/service.sbr?serviceName={{servicePrefix}}.getTarefa&outputType=json",
+              "host": ["{{baseUrl}}"],
+              "path": ["mge", "service.sbr"],
+              "query": [
+                { "key": "serviceName", "value": "{{servicePrefix}}.getTarefa" },
+                { "key": "outputType", "value": "json" }
+              ]
+            },
+            "description": "Gadget usa `idInstTar` / `IDINSTTAR` e openApp workflow."
+          }
+        }
+      ]
+    }
+  ]
+}

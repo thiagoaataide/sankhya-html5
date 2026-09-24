@@ -38,7 +38,6 @@ SELECT TO_CHAR(APU.NUAPURACAO) AS NUAPURACAO,
        TO_CHAR(APU.IDINSTPRN) AS IDINSTPRN,
        TO_CHAR(APU.NUFILA) AS NUFILA,
        TO_CHAR(APU.PLANO) AS PLANO,
-       TO_CHAR(APU.AD_DHALTER, 'YYYY-MM-DD HH24:MI:SS') AS AD_DHALTER,
        CASE
            WHEN EXISTS (
                SELECT 1
@@ -88,7 +87,6 @@ SELECT TO_CHAR(APU.NUAPURACAO) AS NUAPURACAO,
              data-idinstprn="<c:out value='${row.IDINSTPRN}'/>"
              data-nufila="<c:out value='${row.NUFILA}'/>"
              data-plano="<c:out value='${row.PLANO}'/>"
-             data-ad-dhalter="<c:out value='${row.AD_DHALTER}'/>"
              data-possui-anexo="<c:out value='${row.POSSUIANEXO}'/>"></div>
     </c:forEach>
 </div>

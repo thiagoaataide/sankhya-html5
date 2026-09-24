@@ -1,6 +1,8 @@
 # Dashboard de Apuração de Faturas — Especificação
 
-**Status:** especificação atualizada; decisão arquitetural aceita; execução iniciada pelo desenho do contrato da fachada. O risco de divergência do fonte legado foi aceito pelo solicitante. Implementação e deploy permanecem sujeitos à homologação manual.
+**Status:** decisão arquitetural aceita; recuperação read-first especificada;
+T22 valida a consulta, seguida do contrato e dos comandos MVP. Implementação e
+deploy permanecem sujeitos à homologação manual.
 
 ## Problema
 
@@ -11,6 +13,18 @@ O checkout disponível em `C:\projetos\facilitatelecoment` não é uma base conf
 ## Decisão arquitetural
 
 A solução seguirá uma migração incremental. O gadget HTML5 deste projeto será a camada de consulta e experiência. As mutações necessárias para paridade funcional serão encapsuladas por uma nova fachada transacional de backend da Facilita, em pacote separado do legado. O gadget não chamará diretamente os serviços legados para gravar dados. A decisão, alternativas e consequências estão em [`ADR-001-fachada-transacional-dashboard.md`](adr/ADR-001-fachada-transacional-dashboard.md).
+
+Para recuperar a tela mais cedo, lista e detalhe podem permanecer em JSP
+server-side somente leitura, desde que a homologação comprove parâmetros
+vinculados ou validados, projeção allowlisted e autorização sob o usuário do
+Om. Se algum desses controles não puder ser comprovado, a leitura deve passar
+por uma consulta autorizada no Provider. JavaScript cuida da interação e nunca
+grava diretamente dados de apuração.
+
+Edição, confirmação e nova auditoria passam pela interface pequena do
+`ApuracaoDashboardSP`; anexos e workflow continuam no escopo, mas são uma
+fase separada e não bloqueiam a recuperação da consulta. O aceite deve
+promovê-los ao gate do MVP se forem indispensáveis para concluir a aprovação.
 
 O layout não precisa ser visualmente idêntico à tela antiga. O critério é entregar as capacidades funcionais, autorização, consistência e rastreabilidade equivalentes.
 
@@ -105,6 +119,17 @@ Como analista, quero escolher colunas e exportar o resultado sem depender da API
 
 - **APU-15:** QUANDO o usuário alterar colunas ou ordenar a lista, ENTÃO a preferência DEVE ser salva com uma chave nova, isolada da configuração legada.
 - **APU-16:** QUANDO exportar a lista filtrada, ENTÃO o arquivo DEVE conter somente as colunas visíveis e as linhas que o usuário pode consultar.
+
+### Critérios técnicos transversais
+
+- **APU-17:** QUANDO o usuário editar, confirmar ou solicitar nova auditoria,
+  ENTÃO o gadget DEVE enviar um comando ao `ApuracaoDashboardSP`; JavaScript
+  não DEVE gravar diretamente em `BH_FACAPU` nem chamar serviços legados de
+  escrita.
+- **APU-18:** QUANDO lista e detalhe forem servidos por JSP durante a
+  recuperação inicial, ENTÃO a consulta DEVE usar parâmetros vinculados ou
+  validados, campos allowlisted e autorização comprovada; se isso não puder
+  ser demonstrado, a leitura DEVE ser movida para o Provider antes da liberação.
 
 ## Fluxo de negócio proposto
 

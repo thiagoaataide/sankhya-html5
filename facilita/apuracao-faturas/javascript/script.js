@@ -7,10 +7,14 @@
     var selectedDetail = null;
     var detailRequestSequence = 0;
     var actionRequestSequence = 0;
-    var sortState = { key: null, direction: 1 };
+    var sortState = { key: "numcontrato", direction: 1 };
+    var pageState = { page: 1, pageSize: 15 };
+    var manualColumnSort = false;
     var visibleColumns = { 0: true, 1: true, 2: true, 3: true, 4: true, 5: true, 6: true, 7: true };
     var facadeConfig = window.FACILITA_APURACAO_FACADE || {};
-    var facadePrefix = facadeConfig.servicePrefix || "facilitatelecom@ApuracaoDashboardSP";
+    var facadeAppKey = facadeConfig.appKey || "";
+    var facadeServiceName = facadeConfig.serviceName || "ApuracaoDashboardSP";
+    var facadeServicePath = facadeConfig.servicePath || "/mge/service.sbr";
     var numberFormat = new Intl.NumberFormat("pt-BR", {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2
@@ -23,7 +27,10 @@
             rows = readRows();
             filteredRows = rows.slice();
             loadColumnPreferences();
+            loadPagePreferences();
             bindEvents();
+            syncSortWithSearchField();
+            applySorting();
             render();
             setLoading(false);
         } catch (error) {
@@ -79,7 +86,37 @@
             search.addEventListener("input", applyFilters);
         }
         if (field) {
-            field.addEventListener("change", applyFilters);
+            field.addEventListener("change", function () {
+                manualColumnSort = false;
+                applyFilters();
+            });
+        }
+        var pageSize = document.getElementById("page-size");
+        var pagePrev = document.getElementById("page-prev");
+        var pageNext = document.getElementById("page-next");
+        if (pageSize) {
+            pageSize.addEventListener("change", function () {
+                pageState.pageSize = parsePageSize(pageSize.value);
+                pageState.page = 1;
+                savePagePreferences();
+                render();
+            });
+        }
+        if (pagePrev) {
+            pagePrev.addEventListener("click", function () {
+                if (pageState.page > 1) {
+                    pageState.page -= 1;
+                    render();
+                }
+            });
+        }
+        if (pageNext) {
+            pageNext.addEventListener("click", function () {
+                if (pageState.page < getTotalPages()) {
+                    pageState.page += 1;
+                    render();
+                }
+            });
         }
         if (refresh) {
             refresh.addEventListener("click", function () {
@@ -132,9 +169,11 @@
                 return true;
             }
             return searchableValues(row, selectedField).some(function (value) {
-                return String(value).toLowerCase().indexOf(query) !== -1;
+                return matchesSearchToken(value, query);
             });
         });
+        pageState.page = 1;
+        syncSortWithSearchField();
         applySorting();
 
         if (selectedRow && !filteredRows.some(function (row) {
@@ -146,6 +185,23 @@
         render();
     }
 
+    function matchesSearchToken(value, query) {
+        return String(value).toLowerCase().indexOf(query) !== -1;
+    }
+
+    function dateSearchVariants(isoValue) {
+        if (!isoValue) {
+            return [];
+        }
+        var iso = String(isoValue).trim();
+        var variants = [iso];
+        var br = formatDate(iso);
+        if (br !== "—") {
+            variants.push(br);
+        }
+        return variants;
+    }
+
     function searchableValues(row, selectedField) {
         var fields = {
             NUAPURACAO: [row.nuapuracao],
@@ -153,8 +209,8 @@
             NUMCONTRATO: [row.numcontrato],
             NUNOTA: [row.nunota],
             VALOR: [numberFormat.format(row.valor)],
-            DTVENC: [row.dtvenc],
-            REFERENCIA: [row.referencia]
+            DTVENC: dateSearchVariants(row.dtvenc),
+            REFERENCIA: dateSearchVariants(row.referencia)
         };
 
         if (selectedField !== "T" && fields[selectedField]) {
@@ -165,10 +221,8 @@
             row.codconta,
             row.numcontrato,
             row.nunota,
-            numberFormat.format(row.valor),
-            row.dtvenc,
-            row.referencia
-        ];
+            numberFormat.format(row.valor)
+        ].concat(dateSearchVariants(row.dtvenc)).concat(dateSearchVariants(row.referencia));
     }
 
     function render() {
@@ -186,7 +240,8 @@
         }
 
         body.textContent = "";
-        filteredRows.forEach(function (row) {
+        clampPage();
+        getPageRows().forEach(function (row) {
             var tr = document.createElement("tr");
             tr.tabIndex = 0;
             tr.setAttribute("role", "button");
@@ -221,6 +276,7 @@
         if (empty) {
             empty.hidden = filteredRows.length !== 0;
         }
+        updatePaginationControls();
     }
 
     function renderCounters() {
@@ -414,8 +470,27 @@
         }
     }
 
+    function resolveFacadeServiceName(operation) {
+        if (facadeConfig.servicePrefix) {
+            return facadeConfig.servicePrefix + "." + operation;
+        }
+        if (facadeAppKey) {
+            return facadeAppKey + "@" + facadeServiceName + "." + operation;
+        }
+        return facadeServiceName + "." + operation;
+    }
+
+    function resolveFacadeServiceUrl(serviceName) {
+        if (facadeConfig.servicePrefix) {
+            return window.location.origin + "/mge/service.sbr?serviceName="
+                + encodeURIComponent(serviceName) + "&outputType=json";
+        }
+        return window.location.origin + facadeServicePath + "?serviceName="
+            + encodeURIComponent(serviceName) + "&outputType=json";
+    }
+
     function callFacade(operation, payload) {
-        var serviceName = facadePrefix + "." + operation;
+        var serviceName = resolveFacadeServiceName(operation);
         var requestBody = { request: payload || {} };
         if (window.ServiceProxy && typeof window.ServiceProxy.callService === "function") {
             return new Promise(function (resolve, reject) {
@@ -429,7 +504,7 @@
             });
         }
 
-        var url = window.location.origin + "/mge/service.sbr?serviceName=" + encodeURIComponent(serviceName) + "&outputType=json";
+        var url = resolveFacadeServiceUrl(serviceName);
         return fetch(url, {
             method: "POST",
             credentials: "same-origin",
@@ -437,6 +512,12 @@
             body: JSON.stringify({ serviceName: serviceName, requestBody: requestBody })
         }).then(function (response) {
             return response.text().then(function (text) {
+                if (text && /^\s*</.test(text)) {
+                    throw createFacadeError(
+                        "Resposta não é JSON (sessão expirada ou serviço indisponível).",
+                        "INTEGRATION"
+                    );
+                }
                 var data;
                 try {
                     data = text ? JSON.parse(text) : {};
@@ -469,6 +550,18 @@
         return body && body.response !== undefined ? body.response : body;
     }
 
+    function observedEditionVersion(detail) {
+        if (!detail) {
+            return null;
+        }
+        if (detail.adDhalter) {
+            return detail.adDhalter;
+        }
+        var valueToken = detail.valor == null || !isFinite(detail.valor) ? "" : String(detail.valor);
+        var dueToken = detail.dtvenc || "";
+        return valueToken + "|" + dueToken;
+    }
+
     function createFacadeError(message, code, correlationId) {
         var error = new Error(message || "Falha na fachada transacional.");
         error.code = code || "INTERNAL";
@@ -497,7 +590,7 @@
             nuApuracao: selectedDetail.nuapuracao,
             dtvenc: date || null,
             valor: value,
-            version: selectedDetail.adDhalter || null,
+            version: observedEditionVersion(selectedDetail),
             idempotencyKey: "atualizar-" + selectedDetail.nuapuracao + "-" + Date.now()
         }).then(function () {
             if (requestId !== actionRequestSequence) {
@@ -529,7 +622,7 @@
         setActionBusy(true, "Processando operação…");
         callFacade(operation, {
             nuApuracao: selectedDetail.nuapuracao,
-            version: selectedDetail.adDhalter || null,
+            version: observedEditionVersion(selectedDetail),
             idempotencyKey: operation + "-" + selectedDetail.nuapuracao + "-" + Date.now()
         }).then(function () {
             if (requestId !== actionRequestSequence) {
@@ -579,7 +672,7 @@
                 sessionKey: sessionKey,
                 nameAttach: file.name || "anexo",
                 tipo: type,
-                version: selectedDetail.adDhalter || null,
+                version: observedEditionVersion(selectedDetail),
                 idempotencyKey: "anexar-" + selectedDetail.nuapuracao + "-" + sessionKey
             });
         }).then(function () {
@@ -721,7 +814,103 @@
         return cell;
     }
 
+    function sortKeyForSearchField(fieldValue) {
+        var map = {
+            T: "numcontrato",
+            NUAPURACAO: "nuapuracao",
+            CODCONTA: "codconta",
+            NUMCONTRATO: "numcontrato",
+            NUNOTA: "nunota",
+            VALOR: "valor",
+            DTVENC: "dtvenc"
+        };
+        return map[fieldValue] || "numcontrato";
+    }
+
+    function syncSortWithSearchField() {
+        if (manualColumnSort) {
+            return;
+        }
+        var field = document.getElementById("filter-field");
+        sortState.key = sortKeyForSearchField(field ? field.value : "T");
+        sortState.direction = 1;
+    }
+
+    function parsePageSize(value) {
+        var parsed = parseInt(String(value || "15"), 10);
+        if (!isFinite(parsed) || parsed <= 0) {
+            return 15;
+        }
+        return parsed;
+    }
+
+    function getTotalPages() {
+        if (filteredRows.length === 0) {
+            return 1;
+        }
+        return Math.ceil(filteredRows.length / pageState.pageSize);
+    }
+
+    function clampPage() {
+        var totalPages = getTotalPages();
+        if (pageState.page > totalPages) {
+            pageState.page = totalPages;
+        }
+        if (pageState.page < 1) {
+            pageState.page = 1;
+        }
+    }
+
+    function getPageRows() {
+        clampPage();
+        var start = (pageState.page - 1) * pageState.pageSize;
+        return filteredRows.slice(start, start + pageState.pageSize);
+    }
+
+    function updatePaginationControls() {
+        var totalPages = getTotalPages();
+        var totalRows = filteredRows.length;
+        var start = totalRows === 0 ? 0 : (pageState.page - 1) * pageState.pageSize + 1;
+        var end = totalRows === 0 ? 0 : Math.min(pageState.page * pageState.pageSize, totalRows);
+        setText("page-status", totalRows === 0
+            ? "Nenhum registro"
+            : "Página " + pageState.page + " de " + totalPages + " (" + start + "–" + end + " de " + totalRows + ")");
+        var prev = document.getElementById("page-prev");
+        var next = document.getElementById("page-next");
+        if (prev) {
+            prev.disabled = pageState.page <= 1 || totalRows === 0;
+        }
+        if (next) {
+            next.disabled = pageState.page >= totalPages || totalRows === 0;
+        }
+    }
+
+    function loadPagePreferences() {
+        try {
+            var stored = window.localStorage.getItem("facilita-apuracao-faturas:page-size:v1");
+            if (!stored) {
+                return;
+            }
+            pageState.pageSize = parsePageSize(stored);
+            var pageSize = document.getElementById("page-size");
+            if (pageSize) {
+                pageSize.value = String(pageState.pageSize);
+            }
+        } catch (error) {
+            console.warn("[facilita-apuracao] preferências de paginação indisponíveis");
+        }
+    }
+
+    function savePagePreferences() {
+        try {
+            window.localStorage.setItem("facilita-apuracao-faturas:page-size:v1", String(pageState.pageSize));
+        } catch (error) {
+            console.warn("[facilita-apuracao] preferências de paginação não persistidas");
+        }
+    }
+
     function sortBy(key) {
+        manualColumnSort = true;
         if (sortState.key === key) {
             sortState.direction *= -1;
         } else {
@@ -735,7 +924,7 @@
 
     function applySorting() {
         if (!sortState.key) {
-            return;
+            sortState.key = "numcontrato";
         }
         filteredRows.sort(function (left, right) {
             var a = sortableValue(left, sortState.key);
@@ -752,7 +941,14 @@
 
     function sortableValue(row, key) {
         if (key === "valor") {
-            return row.valor;
+            return row.valor || 0;
+        }
+        if (key === "nuapuracao" || key === "codconta" || key === "numcontrato" || key === "nunota") {
+            var numeric = parseInt(String(row[key] || "0"), 10);
+            return isFinite(numeric) ? numeric : 0;
+        }
+        if (key === "dtvenc" || key === "referencia") {
+            return String(row[key] || "");
         }
         return String(row[key] || "").toLowerCase();
     }

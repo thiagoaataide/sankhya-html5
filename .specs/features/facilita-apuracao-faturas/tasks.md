@@ -1,7 +1,11 @@
 # Dashboard de Apuração de Faturas — Tarefas
 
 **Design:** `design.md`  
-**Status:** em execução — T1 evidência preparada; T2 e T3 parcialmente documentadas; T4, T5, T6, T7, T8, T9, T10 e T15 concluídas; T11–T14 com adaptadores implementados e UAT dependente da fachada; T17 em execução; T18 e T21 aguardam o pacote/ambiente do backend; T16 aguarda UAT final.
+**Status:** em execução — T1 tem evidência preparada; T2/T3 estão parciais;
+T4–T10 e T15 estão concluídas; T22 é o próximo gate de leitura. T17 foi
+recortada para comandos MVP; T18 aguarda adapters/publicação do Add-on; T21
+valida leitura e comandos principais. T23 decide se anexos/workflow entram no
+aceite; T11/T13 ficam complementares até essa decisão.
 
 ## Protocolo de validação
 
@@ -35,15 +39,11 @@ O solicitante conduzirá o UAT manual no Sankhya Om. Não há runner, testes aut
 ## Execution Plan
 
 ```text
-Fase 0: T1 → T2 → T3
-Fase 1: T4 → T5 → T8 → T15
-         T1 + T4 → T7 ─┘
-         T4 → T6
-         T5 → T9
-Fase 2: T2 + T3 + T7 → T10; T8 + T10 → T11
-Fase 3: T2 + T3 + T7 + T11 → T17 → T18
-Fase 4: T11 + T18 → (T12, T13, T14)
-Fase 5: T9 + T12 + T13 + T14 + T15 → T21 → T16
+Fase 0 — referência e exposição de dados: T1 → T2 → T3
+Fase 1 — leitura independente: T4 → T5/T6/T7/T8/T9/T10 → T22
+Fase 2 — comandos essenciais: T17 → Add-on T15 → T18 → T12/T14 → T21
+Fase 3 — anexos e workflow: T23 decide o gate; se necessário, T11/T13 → UAT complementar
+Fase 4 — pacote: T16 após o aceite das fases aplicáveis
 ```
 
 ## Task Breakdown
@@ -255,41 +255,47 @@ Fase 5: T9 + T12 + T13 + T14 + T15 → T21 → T16
 
 ### T17: Consolidar contrato da fachada transacional
 
-**What:** Fechar o contrato lógico da fachada para consulta de detalhe, atualização, confirmação, nova auditoria, anexos e workflow, sem inventar campos que ainda não foram capturados no Om.
+**What:** Fechar primeiro o contrato mínimo de edição, confirmação e nova auditoria. Lista/detalhe só entram na fachada se T22 reprovar a consulta JSP; anexos e workflow ficam fora deste contrato MVP.
 **Where:** `.specs/features/facilita-apuracao-faturas/contracts.md`, `.specs/features/facilita-apuracao-faturas/adr/ADR-001-fachada-transacional-dashboard.md`
-**Depends on:** T2, T3, T7, T11
-**Requirement:** APU-04 a APU-14
+**Depends on:** T2, T3, T7, T8, T10, T22
+**Requirement:** APU-04 a APU-06, APU-10 a APU-12, APU-17, APU-18
 
 **Done when:**
 
-- [ ] Cada operação possui entrada mínima, envelope de sucesso/erro e regra de reconsulta.
-- [ ] Autorização, concorrência, idempotência, correlação e compensação de falha estão explícitas.
-- [ ] Itens desconhecidos estão marcados como PENDENTE e viraram evidência a capturar em homologação.
-- [ ] O responsável do cliente aprova o contrato mínimo para iniciar o backend.
+- [ ] Atualização, confirmação e nova auditoria têm entrada mínima, envelope
+  de sucesso/erro e regra de releitura definidos.
+- [ ] Autorização pelo usuário corrente, estado, concorrência/idempotência e
+  correlação estão explícitos; campos/semânticas não comprovados seguem PENDENTE.
+- [ ] Anexos e workflow não são pré-requisitos do contrato MVP, salvo decisão
+  registrada do responsável pelo aceite.
+- [ ] O responsável do cliente aprova o contrato mínimo antes da integração.
 
 **Tests:** manual — revisão do contrato e captura no Sankhya Om
 **Gate:** UAT transacional
 
-**Status:** 🔄 Em execução — contrato inicial criado em `contracts.md`; falta captura/aprovação no ambiente do cliente.
+**Status:** 🔄 Em execução — contrato inicial criado em `contracts.md`; falta captura/aprovação dos comandos MVP no ambiente do cliente.
 
-### T18: Criar a fachada transacional no novo pacote
+### T18: Integrar os comandos MVP com o Add-on Provider
 
-**What:** Implementar o serviço de backend separado do legado, com operações atômicas, autorização por sessão e envelope de resposta definido no T17.
-**Where:** novo pacote de backend da Facilita (local físico e mecanismo de registro definidos no T17)
-**Depends on:** T17
-**Requirement:** APU-05 a APU-14
+**What:** Integrar o gadget com o Add-on existente para edição, confirmação e nova auditoria. A implementação Java pertence ao repositório do Add-on, não ao projeto HTML5.
+**Where:** gadget em `facilita/apuracao-faturas/`; backend em `C:/projetos/facilita-apuracao-fatura-addon`
+**Depends on:** T17, Add-on T15 e T16
+**Requirement:** APU-05, APU-06, APU-10 a APU-12, APU-17
 
 **Done when:**
 
-- [ ] O pacote não depende do checkout `facilitatelecoment` para build ou deploy.
-- [ ] Atualização, confirmação, nova auditoria e anexos validam estado/versão antes do commit.
-- [ ] Erros de negócio, conflito, autorização e integração retornam `code`, `message` seguro e `correlationId`.
-- [ ] Há evidência manual de sucesso e recusa para cada operação em homologação.
+- [ ] O gadget chama somente operações publicadas e homologadas no Add-on;
+  não depende do checkout `facilitatelecoment`.
+- [ ] Cada comando valida usuário, estado e precondições no backend, grava em
+  transação e devolve a linha reconsultada.
+- [ ] Erros de regra, conflito e autorização retornam envelope seguro com
+  `code`, `message` e `correlationId`.
+- [ ] Há evidência manual de sucesso e recusa para cada comando MVP no Om.
 
 **Tests:** manual — UAT transacional do pacote novo
 **Gate:** UAT transacional
 
-**Status:** ⛔ Bloqueada — o pacote de backend e o mecanismo de registro da fachada não estão presentes neste workspace; não é seguro inventar uma implementação Java ou buildar o checkout legado.
+**Status:** ⛔ Bloqueada — o Add-on está em repositório separado. A integração aguarda contrato T17 aprovado, adapters T15/T16 homologados e publicação do Provider em ambiente de teste; esta task não autoriza implementar Java no HTML5 nem buildar o legado.
 
 ### Fase 4 — Operações e exportação
 
@@ -297,7 +303,7 @@ Fase 5: T9 + T12 + T13 + T14 + T15 → T21 → T16
 
 **What:** Implementar o adaptador de edição com o contrato homologado e recarga da linha após resposta.  
 **Where:** `facilita/apuracao-faturas/javascript/script.js`  
-**Depends on:** T2, T11, T18
+**Depends on:** T17, T18
 **Requirement:** APU-04, APU-05, APU-06
 
 **Done when:**
@@ -315,7 +321,7 @@ Fase 5: T9 + T12 + T13 + T14 + T15 → T21 → T16
 
 **What:** Implementar seleção de um arquivo, tipo obrigatório e abertura do visualizador conforme o contrato homologado.  
 **Where:** `facilita/apuracao-faturas/javascript/script.js`  
-**Depends on:** T2, T11, T18
+**Depends on:** T23, Add-on T10
 **Requirement:** APU-07, APU-08, APU-09
 
 **Done when:**
@@ -327,13 +333,13 @@ Fase 5: T9 + T12 + T13 + T14 + T15 → T21 → T16
 **Tests:** manual — UAT do solicitante  
 **Gate:** UAT transacional
 
-**Status:** ⚠️ Adaptador implementado — upload para sessão e associação usam `ApuracaoDashboardSP.anexar`/`listarAnexos`; execução real aguarda T17/T18 e publicação da fachada.
+**Status:** ⚠️ Adaptador implementado — upload para sessão e associação usam `ApuracaoDashboardSP.anexar`/`listarAnexos`; execução fica na fase complementar e depende de T23 e Add-on T10.
 
 ### T14: Integrar confirmação e nova auditoria
 
 **What:** Implementar comandos de confirmação e solicitação de nova auditoria com o contrato homologado.  
 **Where:** `facilita/apuracao-faturas/javascript/script.js`  
-**Depends on:** T2, T11, T18
+**Depends on:** T17, T18
 **Requirement:** APU-10, APU-11, APU-12
 
 **Done when:**
@@ -371,27 +377,31 @@ Fase 5: T9 + T12 + T13 + T14 + T15 → T21 → T16
 
 **What:** Validar no Sankhya Om as operações integradas do gadget contra a fachada, incluindo sucesso, recusa, conflito e falha parcial.
 **Where:** `.specs/features/facilita-apuracao-faturas/homologacao.md`
-**Depends on:** T9, T12, T13, T14, T15
-**Requirement:** APU-04 a APU-16
+**Depends on:** T12, T14, T22
+**Requirement:** APU-04 a APU-06, APU-10 a APU-12, APU-17, APU-18
 
 **Done when:**
 
-- [ ] Edição, anexo, confirmação, nova auditoria e tarefa são testados com usuário autorizado.
-- [ ] Recusa por permissão, valor ausente, conflito e falha de integração não deixam estado parcial na UI.
-- [ ] A amostra de registros e o correlation ID de cada cenário ficam registrados sem dados sensíveis.
-- [ ] O solicitante decide aceite, correção ou retorno ao plano B nativo.
+- [ ] Edição, confirmação e nova auditoria são testadas com usuário permitido
+  e negado; anexos/workflow não fazem parte desta fatia.
+- [ ] Recusa por permissão, valor ausente, conflito e falha não deixam estado
+  parcial na UI; após sucesso, a linha é reconsultada.
+- [ ] A amostra e o correlation ID dos cenários ficam registrados sem dados
+  sensíveis.
+- [ ] O solicitante aceita explicitamente a consulta e os comandos do MVP ou
+  devolve os bloqueios para correção.
 
 **Tests:** manual — UAT do solicitante
 **Gate:** UAT transacional
 
-**Status:** ⛔ Bloqueada — depende da publicação da fachada T18 e das integrações T12–T14 no Om de homologação.
+**Status:** ⛔ Bloqueada — depende da consulta aprovada em T22 e da publicação/homologação dos comandos principais via T18, T12 e T14.
 
 ### T16: Preparar pacote e roteiro de UAT
 
 **What:** Criar ZIP publicável e consolidar roteiro de aceite por requisito.  
 **Where:** `facilita/apuracao-faturas/` e `.specs/features/facilita-apuracao-faturas/homologacao.md`  
-**Depends on:** T21
-**Requirement:** APU-01 a APU-16
+**Depends on:** T21, T22, T23
+**Requirement:** APU-01 a APU-18
 
 **Done when:**
 
@@ -403,7 +413,55 @@ Fase 5: T9 + T12 + T13 + T14 + T15 → T21 → T16
 **Tests:** manual — UAT do solicitante  
 **Gate:** Pacote
 
-**Status:** ⚠️ Parcial — roteiro criado em `.specs/features/facilita-apuracao-faturas/homologacao.md`; ZIP final aguarda T21.
+**Status:** ⚠️ Parcial — roteiro criado em `.specs/features/facilita-apuracao-faturas/homologacao.md`; ZIP final aguarda T21/T22/T23 e o aceite das fases aplicáveis.
+
+### T22: Homologar a consulta read-first sem depender da fachada
+
+**What:** Validar lista, filtros e detalhe atuais em modo somente leitura.
+Comprovar parâmetros, projeção e autorização; se JSP não passar no gate, mover
+a consulta para uma operação autorizada do Provider antes de liberar o gadget.
+**Where:** `facilita/apuracao-faturas/dados.jsp`,
+`detalhe_payload.jsp` e `homologacao.md`
+**Depends on:** T3, T7, T8, T10
+**Requirement:** APU-01, APU-02, APU-03, APU-09, APU-18
+
+**Done when:**
+
+- [ ] Filtros de mês, pendência, anexo e busca combinam-se conforme a amostra
+  funcional aprovada e não usam `GridConfig`.
+- [ ] Entradas são vinculadas ou validadas no servidor; a projeção usa apenas
+  campos permitidos e os perfis autorizados/negados são testados.
+- [ ] Uma consulta JSP que não comprove esses controles não libera o gadget;
+  a leitura é movida para o Provider e volta ao UAT.
+- [ ] Falha de leitura não exibe resultado antigo como atual nem dados parciais.
+- [ ] Evidência manual registra filtros, perfis e resultado sem dados sensíveis.
+
+**Tests:** manual — UAT de consulta
+**Gate:** UAT de consulta
+
+**Status:** ⏳ Nova — aguarda validação da consulta e dos parâmetros no Om.
+
+### T23: Confirmar se anexos e workflow são gate do MVP
+
+**What:** Obter a decisão explícita do responsável funcional sobre concluir a
+aprovação sem anexar/visualizar arquivos ou abrir a tarefa nativa.
+**Where:** `homologacao.md`, `tasks.md` e `memory.md`
+**Depends on:** T2, T3
+**Requirement:** APU-07 a APU-09, APU-13, APU-14
+
+**Done when:**
+
+- [ ] A decisão identifica se anexos e workflow são indispensáveis para
+  concluir uma aprovação no MVP.
+- [ ] Se forem indispensáveis, T11/T13 e Add-on T10/T11 são promovidas para o
+  gate de integração/UAT; se não forem, ficam registradas como fase posterior.
+- [ ] A decisão é refletida no roteiro de homologação e não é inferida do
+  fonte legado.
+
+**Tests:** manual — aceite do responsável funcional
+**Gate:** decisão de escopo
+
+**Status:** ⏳ Nova — decisão de aceite funcional pendente.
 
 ## Cross-check de dependências
 
@@ -420,14 +478,16 @@ Fase 5: T9 + T12 + T13 + T14 + T15 → T21 → T16
 | T9 | T5 | T5 → T9 | OK |
 | T10 | T2, T3, T7 | T2 + T3 + T7 → T10 | OK |
 | T11 | T8, T10 | T8 + T10 → T11 | OK |
-| T12 | T2, T11, T18 | T11 + T18 → T12 | OK |
-| T13 | T2, T11, T18 | T11 + T18 → T13 | OK |
-| T14 | T2, T11, T18 | T11 + T18 → T14 | OK |
+| T12 | T17, T18 | T17 + T18 → T12 | OK |
+| T13 | T23, Add-on T10 | T23 + Add-on T10 → T13 | fase complementar |
+| T14 | T17, T18 | T17 + T18 → T14 | OK |
 | T15 | T8 | T8 → T15 | OK |
-| T17 | T2, T3, T7, T11 | T2 + T3 + T7 + T11 → T17 | OK |
-| T18 | T17 | T17 → T18 | OK |
-| T21 | T9, T12, T13, T14, T15 | T9 + T12 + T13 + T14 + T15 → T21 | OK |
-| T16 | T21 | T21 → T16 | OK |
+| T17 | T2, T3, T7, T8, T10, T22 | T22 + evidências → T17 | em execução |
+| T18 | T17, Add-on T15/T16 | contrato + adapters → T18 | bloqueada até Om |
+| T21 | T12, T14, T22 | leitura + comandos → T21 | UAT do MVP |
+| T16 | T21, T22, T23 | aceite das fases aplicáveis → T16 | aguarda UAT |
+| T22 | T3, T7, T8, T10 | consultas → T22 | nova — UAT de leitura |
+| T23 | T2, T3 | decisão funcional → T23 | nova — escopo anexo/workflow |
 
 ## Validação da co-localização
 
@@ -437,8 +497,9 @@ Fase 5: T9 + T12 + T13 + T14 + T15 → T21 → T16
 | T4-T7, T10 | XML/JSP | manual | manual | OK |
 | T8-T9, T11-T15 | JavaScript/CSS | manual | manual | OK |
 | T17 | contrato/ADR | manual | manual | OK |
-| T18 | backend transacional | manual | manual | OK |
+| T18 | integração com backend | manual | manual | OK |
 | T21 | integração | manual | manual | OK |
+| T22-T23 | consulta e decisão funcional | manual | manual | pendente |
 | T16 | pacote | manual | manual | OK |
 
 ## Execução

@@ -1,0 +1,158 @@
+openapi: 3.1.0
+info:
+  title: Apuração de Faturas — superfícies HTTP validadas
+  version: 0.1.0
+  description: |
+    Contrato publicado apenas para integrações já exercitadas no gadget HTML5 (UAT de consulta C01–C07, tarefas T4–T10 e T15).
+
+    Operações da fachada `facilitatelecom@ApuracaoDashboardSP` **não** entram neste documento até o UAT transacional C09–C18 (T21).
+    O desenho completo permanece em `.specs/features/facilita-apuracao-faturas/contracts.md`.
+    Exemplos Postman (incluindo fachada em rascunho) em `api/postman/`.
+
+servers:
+  - url: "{baseUrl}"
+    description: Sankhya Om (sessão autenticada do usuário)
+    variables:
+      baseUrl:
+        default: https://homolog.exemplo.com.br
+      baseFolder:
+        default: /mge/html5component/FacilitaApuracao
+
+tags:
+  - name: consulta-validada
+    description: Endpoints usados pelo gadget e validados na rodada de consulta
+
+paths:
+  /{baseFolder}/detalhe_payload.jsp:
+    get:
+      operationId: obterDetalheApuracao
+      tags: [consulta-validada]
+      summary: Detalhe não sensível de uma apuração
+      description: |
+        Mesma chamada feita por `fetch` em `javascript/script.js` ao selecionar uma linha.
+        Retorna HTML com `#detail-container` e `div.detail-row` com atributos `data-*` (whitelist de `detalhe_payload.jsp`).
+      parameters:
+        - name: baseFolder
+          in: path
+          required: true
+          description: Valor de `BASE_FOLDER` do gadget (sem barra final)
+          schema:
+            type: string
+            example: mge/html5component/FacilitaApuracao
+        - name: nuapuracao
+          in: query
+          required: true
+          description: Chave numérica `BH_FACAPU.NUAPURACAO`
+          schema:
+            type: string
+            pattern: "^[0-9]+$"
+            example: "12345678"
+      responses:
+        "200":
+          description: HTML com zero ou uma linha de detalhe
+          content:
+            text/html:
+              schema:
+                type: string
+              examples:
+                encontrado:
+                  summary: Apuração localizada
+                  value: |
+                    <div id="detail-container" data-valid-key="S">
+                      <div class="detail-row"
+                           data-nuapuracao="12345678"
+                           data-dtvenc="2026-09-15"
+                           data-valor="150,75"
+                           data-confirmado="N"
+                           data-possui-anexo="S"></div>
+                    </div>
+                invalido:
+                  summary: Chave inválida ou inexistente
+                  value: |
+                    <div id="detail-container" data-valid-key="N"></div>
+        "500":
+          description: Erro de servidor (redireciona para `erro.jsp` sem expor stack na UI)
+
+  /{baseFolder}/tdb_partida.jsp:
+    get:
+      operationId: carregarGadgetLista
+      tags: [consulta-validada]
+      summary: Carga inicial do gadget (lista embutida)
+      description: |
+        Entry point do dashboard (`tdb_dashboard.xml`). A lista não é JSON: `dados.jsp` renderiza `#data-container`
+        com `.data-row` no HTML. Filtros do BI (`P_REFERENCIA`, `P_SOMENTE_PENDENTES`, `P_POSSUI_ANEXO`) são aplicados no servidor.
+        Busca, ordenação e colunas visíveis são apenas no cliente (`script.js`).
+      parameters:
+        - name: baseFolder
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: P_REFERENCIA
+          in: query
+          required: false
+          description: Primeiro dia do mês de referência (`YYYY-MM-DD`). Vazio = mês corrente.
+          schema:
+            type: string
+            format: date
+            example: "2026-09-01"
+        - name: P_SOMENTE_PENDENTES
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [S, N]
+            default: S
+        - name: P_POSSUI_ANEXO
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [S, N]
+            default: N
+      responses:
+        "200":
+          description: HTML completo do gadget com lista serializada em `data-*`
+          content:
+            text/html:
+              schema:
+                type: string
+
+components:
+  schemas:
+    FacadeEnvelopeSuccess:
+      description: Contrato alvo da fachada (não publicado até T21). Referência em contracts.md.
+      type: object
+      required: [ok, correlationId, data, error]
+      properties:
+        ok:
+          type: boolean
+          const: true
+        correlationId:
+          type: string
+        data:
+          type: object
+        error:
+          nullable: true
+    FacadeEnvelopeError:
+      type: object
+      required: [ok, correlationId, data, error]
+      properties:
+        ok:
+          type: boolean
+          const: false
+        correlationId:
+          type: string
+        data:
+          nullable: true
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              enum: [BUSINESS_RULE, FORBIDDEN, CONFLICT, VALIDATION, INTEGRATION, INTERNAL]
+            message:
+              type: string
+            field:
+              type: string
