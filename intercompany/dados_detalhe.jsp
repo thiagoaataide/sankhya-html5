@@ -114,8 +114,6 @@ SELECT
 
     END AS SALDO_ITEM_NF,
 
-    NVL(its.CODLOCAL, 0) AS CODLOCAL_ITS,
-
     NVL(its.QTDENT, 0) AS QTDENT_ITS,
 
     NVL(its.QTDSAI, 0) AS QTDSAI_ITS,
@@ -252,6 +250,10 @@ SELECT
 
     NVL(its.CODLOCAL, 0) AS CODLOCAL_ITS,
 
+    NVL(its.QTDENT, 0) AS QTDENT_TGFITS,
+
+    NVL(its.QTDSAI, 0) AS QTDSAI_TGFITS,
+
     ROUND(NVL(its.QTDENT, 0) - NVL(its.QTDSAI, 0), 10) AS SALDO_RAST_LINHA,
 
     CASE
@@ -268,7 +270,7 @@ SELECT
 
         ELSE 0
 
-    END AS SALDO_SAIDA_TGFITS,
+    END AS SALDO_DISP_VINCULAR,
 
     '${pRastreavel}' AS RASTREAVEL,
 
@@ -366,8 +368,6 @@ ORDER BY cab.DTENTSAI DESC, cab.NUNOTA, ite.SEQUENCIA
 
               data-saldoitem="<c:out value='${row.SALDO_ITEM_NF}'/>"
 
-              data-codlocal="<c:out value='${row.CODLOCAL_ITS}'/>"
-
               data-saldorast="<c:out value='${row.SALDO_RAST_LINHA}'/>"
 
               data-saldovinc="<c:out value='${row.SALDO_VINCULAVEL}'/>"
@@ -410,7 +410,11 @@ ORDER BY cab.DTENTSAI DESC, cab.NUNOTA, ite.SEQUENCIA
 
               data-saldoitem="<c:out value='${row.SALDO_ITEM_NF}'/>"
 
-              data-saldorastloc="<c:out value='${row.SALDO_SAIDA_TGFITS}'/>"
+              data-qtdenttgfits="<c:out value='${row.QTDENT_TGFITS}'/>"
+
+              data-qtdsaitgfits="<c:out value='${row.QTDSAI_TGFITS}'/>"
+
+              data-saldodispvinc="<c:out value='${row.SALDO_DISP_VINCULAR}'/>"
 
               data-rastreavel="<c:out value='${row.RASTREAVEL}'/>">
 

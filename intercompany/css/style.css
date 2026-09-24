@@ -34,8 +34,14 @@
 
 *, *::before, *::after { box-sizing: border-box; }
 
+html {
+    width: 100%;
+}
+
 body {
     margin: 0;
+    min-width: 0;
+    width: 100%;
     font-family: var(--font);
     font-size: 14px;
     line-height: 1.5;
@@ -47,12 +53,13 @@ body {
 }
 
 .shell {
-    max-width: 1480px;
-    margin: 0 auto;
-    padding: clamp(16px, 2vw, 28px);
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    padding: clamp(8px, 0.65vw, 12px) clamp(10px, 0.85vw, 14px);
     display: flex;
     flex-direction: column;
-    gap: 18px;
+    gap: 14px;
 }
 
 .hero {
@@ -61,7 +68,7 @@ body {
     align-items: flex-start;
     gap: 20px;
     flex-wrap: wrap;
-    padding: 20px 22px;
+    padding: 16px 18px;
     border-radius: var(--radius);
     background: var(--get-surface);
     border: 1px solid var(--line);
@@ -174,7 +181,7 @@ body {
     justify-content: space-between;
     align-items: flex-end;
     gap: 16px;
-    padding: 16px 18px;
+    padding: 12px 14px;
     border-bottom: 1px solid var(--line);
     flex-wrap: wrap;
     background: var(--get-surface-alt);
@@ -225,7 +232,7 @@ th {
     z-index: 1;
     background: #eef4fc;
     text-align: left;
-    padding: 10px 12px;
+    padding: 8px 10px;
     font-size: 11px;
     font-weight: 700;
     text-transform: uppercase;
@@ -236,7 +243,7 @@ th {
 }
 
 td {
-    padding: 10px 12px;
+    padding: 8px 10px;
     border-bottom: 1px solid #e9e9e9;
     vertical-align: top;
     color: var(--get-ink-soft);
@@ -296,8 +303,8 @@ tbody tr.row--has-saldo:hover {
 
 .detail-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 16px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
     align-items: start;
 }
 

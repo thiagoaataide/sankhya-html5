@@ -190,7 +190,6 @@
             qtdComprada: num(el.dataset.qtdcomprada),
             qtdDevolvida: num(el.dataset.qtddevolvida),
             saldoItem: num(el.dataset.saldoitem),
-            codlocal: el.dataset.codlocal || "",
             saldoRast: num(el.dataset.saldorast),
             saldoVinc: num(el.dataset.saldovinc),
             rastreavel: el.dataset.rastreavel || "N"
@@ -208,7 +207,10 @@
             tipmov: (el.dataset.tipmov || "C").trim().toUpperCase(),
             descrtop: el.dataset.descrtop || "",
             saldoItem: num(el.dataset.saldoitem),
-            saldoRastLoc: num(el.dataset.saldorastloc)
+            qtdEntTgfits: num(el.dataset.qtdenttgfits),
+            qtdSaiTgfits: num(el.dataset.qtdsaitgfits),
+            saldoDispVinc: num(el.dataset.saldodispvinc),
+            rastreavel: el.dataset.rastreavel || "N"
         };
     }
 
@@ -358,7 +360,6 @@
                 tr.appendChild(tdNum(r.qtdComprada));
                 tr.appendChild(tdNum(r.qtdDevolvida));
                 tr.appendChild(tdNum(r.saldoItem));
-                tr.appendChild(td(r.codlocal));
                 tr.appendChild(tdNum(r.saldoRast));
                 tr.appendChild(tdNum(r.saldoVinc));
                 bindNotaRowDblclick(tr, r);
@@ -372,13 +373,16 @@
             const frag = document.createDocumentFragment();
             outrasRows.forEach((r) => {
                 const tr = document.createElement("tr");
-                if (r.saldoRastLoc > 0) tr.classList.add("row--has-saldo");
+                const dispVinc = r.rastreavel === "S" ? r.saldoDispVinc : r.saldoItem;
+                if (dispVinc > 0) tr.classList.add("row--has-saldo");
                 tr.appendChild(td(r.nunota));
                 tr.appendChild(td(r.numnota + (r.serie ? " / " + r.serie : "")));
                 tr.appendChild(td(formatDate(r.dtentsai)));
                 tr.appendChild(td(r.top + " " + EM_DASH + " " + truncate(r.descrtop, 28)));
                 tr.appendChild(tdNum(r.saldoItem));
-                tr.appendChild(tdNum(r.saldoRastLoc));
+                tr.appendChild(tdNum(r.qtdEntTgfits));
+                tr.appendChild(tdNum(r.qtdSaiTgfits));
+                tr.appendChild(tdNum(dispVinc));
                 bindNotaRowDblclick(tr, r);
                 frag.appendChild(tr);
             });
@@ -392,11 +396,14 @@
                 + comSaldo + " com saldo vincul\u00e1vel > 0 (destaque verde)." + dblHint;
         }
         if (outrasMeta) {
-            const comSaldoSaida = outrasRows.filter((r) => r.saldoRastLoc > 0).length;
+            const comDispVinc = outrasRows.filter((r) => {
+                const disp = r.rastreavel === "S" ? r.saldoDispVinc : r.saldoItem;
+                return disp > 0;
+            }).length;
             outrasMeta.textContent = failed
                 ? "Falha ao carregar entradas. Tente selecionar o produto novamente."
                 : outrasRows.length + " nota(s) eleg\u00edveis para dev. compra (n\u00e3o intercompany) \u00b7 "
-                    + comSaldoSaida + " com saldo de sa\u00edda TGFITS (verde, se rastre\u00e1vel)." + dblHint;
+                    + comDispVinc + " com quantidade dispon\u00edvel para vincular (verde)." + dblHint;
         }
         if (failed && intercoMeta) {
             intercoMeta.textContent = "Falha ao carregar notas intercompany.";

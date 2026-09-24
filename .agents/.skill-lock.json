@@ -1,0 +1,19 @@
+{
+  "version": 2,
+  "skills": {
+    "web-design-guidelines": {
+      "name": "web-design-guidelines",
+      "source": "local",
+      "contentHash": "213a23fff251b12ddfec648bda148bf10704ef6617e162eb9329cc83963dd138",
+      "installedAt": "2026-08-27T17:24:37.939Z",
+      "updatedAt": "2026-08-27T17:24:37.980Z",
+      "agents": [
+        "cursor",
+        "claude-code",
+        "windsurf"
+      ],
+      "method": "copy",
+      "global": false
+    }
+  }
+}

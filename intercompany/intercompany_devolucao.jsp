@@ -95,7 +95,6 @@
                         <th>Comprada</th>
                         <th>Devolvida item</th>
                         <th>Saldo item</th>
-                        <th>Local ITS</th>
                         <th>Saldo rast.</th>
                         <th>Vincul&aacute;vel</th>
                     </tr>
@@ -109,7 +108,7 @@
             <div class="panel__head">
                 <div>
                     <h2>Outras entradas (n&atilde;o intercompany)</h2>
-                    <p id="outras-meta">Notas fora do intercompany para devolu&ccedil;&atilde;o de compra. Rastre&aacute;vel: saldo TGFITS para sa&iacute;da. N&atilde;o rastre&aacute;vel: compras com saldo no item.</p>
+                    <p id="outras-meta">Notas fora do intercompany para devolu&ccedil;&atilde;o de compra. Rastre&aacute;vel: entrada, sa&iacute;da e saldo dispon&iacute;vel na TGFITS. N&atilde;o rastre&aacute;vel: compras com saldo no item.</p>
                 </div>
             </div>
             <div class="table-wrap">
@@ -121,7 +120,9 @@
                         <th>Entrada</th>
                         <th>TOP</th>
                         <th>Saldo item</th>
-                        <th>Saldo sa&iacute;da TGFITS</th>
+                        <th>Entrada TGFITS</th>
+                        <th>Sa&iacute;da TGFITS</th>
+                        <th>Dispon&iacute;vel p/ vincular</th>
                     </tr>
                     </thead>
                     <tbody id="grid-outras-body"></tbody>
