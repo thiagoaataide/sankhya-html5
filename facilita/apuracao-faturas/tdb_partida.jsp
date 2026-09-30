@@ -179,12 +179,12 @@
                     <span>Tipo</span>
                     <select id="attachment-type" name="attachmentType" autocomplete="off">
                         <option value="">Selecione</option>
-                        <option value="Original">Original</option>
-                        <option value="2ª via">2&ordf; via</option>
-                        <option value="Ajustada">Ajustada</option>
-                        <option value="Boleto">Boleto</option>
-                        <option value="Nota Fiscal">Nota Fiscal</option>
-                        <option value="Resumida">Resumida</option>
+                        <option value="FO">Original</option>
+                        <option value="2V">2&ordf; via</option>
+                        <option value="FA">Ajustada</option>
+                        <option value="BO">Boleto</option>
+                        <option value="NF">Nota Fiscal</option>
+                        <option value="RE">Resumida</option>
                     </select>
                 </label>
                 <button type="button" class="btn btn--quiet" id="btn-upload-attachment" disabled>Enviar anexo</button>

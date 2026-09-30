@@ -1,11 +1,10 @@
 # Dashboard de Apuração de Faturas — Tarefas
 
 **Design:** `design.md`  
-**Status:** em execução — T12 grava valor e vencimento pelo botão de ação `77`
-(`ActionButtonsSP.executeJava`), comprovado na apuração `189300545` em
-2026-09-30. Próximos comandos do gadget (confirmar e nova auditoria) seguem
-esse padrão, não a fachada `ApuracaoDashboardSP`. T18 fica fora do caminho de
-escrita do BI. T22 continua o gate de leitura. T23 decide anexos e workflow.
+**Status:** em execução — T12 grava valor e vencimento pelo botão `77`. Ver anexo
+abre o visualizador legado e foi comprovado em 2026-09-30. Próximos comandos:
+confirmar e nova auditoria, no mesmo padrão de botão de ação. O envio de anexo
+continua pendente.
 
 ## Protocolo de validação
 
@@ -334,7 +333,7 @@ Fase 4 — pacote: T16 após o aceite das fases aplicáveis
 **Tests:** manual — UAT do solicitante  
 **Gate:** UAT transacional
 
-**Status:** ⚠️ Adaptador implementado — upload para sessão e associação usam `ApuracaoDashboardSP.anexar`/`listarAnexos`; execução fica na fase complementar e depende de T23 e Add-on T10.
+**Status:** ⚠️ Visualização comprovada em 2026-09-30 — Ver anexo abre `/facilitatelecom/visualizadorArquivos.facilita?nuApuracao={NUAPURACAO}` numa aba nova. O visualizador acrescenta `mgeSession` e `chaveArquivo` e mostra o anexo mais recente. O envio de arquivo continua pendente.
 
 ### T14: Integrar confirmação e nova auditoria
 

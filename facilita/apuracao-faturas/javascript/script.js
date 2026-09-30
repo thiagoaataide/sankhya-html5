@@ -486,6 +486,38 @@
             + encodeURIComponent(serviceName) + "&outputType=json";
     }
 
+    function chamarServicoMge(serviceName, requestBody) {
+        return fetch(window.location.origin + "/mge/service.sbr?serviceName=" + serviceName + "&outputType=json", {
+            method: "POST",
+            credentials: "same-origin",
+            headers: { "Content-Type": "application/json;charset=UTF-8", Accept: "application/json" },
+            body: JSON.stringify({ serviceName: serviceName, requestBody: requestBody })
+        }).then(function (response) {
+            return response.text().then(function (text) {
+                if (text && /^\s*</.test(text)) {
+                    throw createFacadeError(
+                        "Resposta não é JSON (sessão expirada ou serviço indisponível).",
+                        "INTEGRATION"
+                    );
+                }
+                var data;
+                try {
+                    data = text ? JSON.parse(text) : {};
+                } catch (error) {
+                    throw createFacadeError("O serviço retornou uma resposta inválida.", "INTEGRATION");
+                }
+                var status = String(data.status);
+                if (status !== "1" && status !== "2") {
+                    throw createFacadeError(
+                        data.statusMessage || "Não foi possível associar o anexo.",
+                        "INTEGRATION"
+                    );
+                }
+                return data;
+            });
+        });
+    }
+
     function acionarBotaoJava(dados, idBotao) {
         var parametros = Object.keys(dados).map(function (chave) {
             return {
@@ -704,7 +736,7 @@
             setDetailMessage("Selecione o tipo do anexo antes de enviar.");
             return;
         }
-        var sessionKey = "APURACAO_DASHBOARD_" + selectedDetail.nuapuracao + "_" + Date.now();
+        var sessionKey = "ANEXO_SISTEMA_bhApuracao_" + selectedDetail.nuapuracao;
         var formData = new FormData();
         formData.append("arquivo", file, file.name || "anexo");
         setActionBusy(true, "Enviando anexo…");
@@ -716,17 +748,27 @@
             if (!response.ok) {
                 throw createFacadeError("O upload do arquivo foi recusado.", "INTEGRATION");
             }
-            return callFacade("anexar", {
-                nuApuracao: selectedDetail.nuapuracao,
-                sessionKey: sessionKey,
-                nameAttach: file.name || "anexo",
-                tipo: type,
-                version: observedEditionVersion(selectedDetail),
-                idempotencyKey: "anexar-" + selectedDetail.nuapuracao + "-" + sessionKey
+            return chamarServicoMge("AnexoSistemaSP.salvar", {
+                params: {
+                    pkEntity: String(selectedDetail.nuapuracao),
+                    keySession: sessionKey,
+                    nameEntity: "bhApuracao",
+                    description: type,
+                    keyAttach: "",
+                    typeAcess: "ALL",
+                    typeApres: "GLO",
+                    nuAttach: "",
+                    nameAttach: file.name || "anexo",
+                    fileSelect: 1,
+                    oldFile: file.name || "anexo"
+                }
             });
         }).then(function () {
-            setDetailMessage("Anexo associado. Recarregando a apuração…");
-            reloadAfterAction();
+            if (fileInput) {
+                fileInput.value = "";
+            }
+            clearDetailMessage();
+            showSuccessDialog("Arquivo associado à apuração.", "Anexo enviado");
         }).catch(function (error) {
             showActionError(error, "Não foi possível associar o anexo.");
         }).finally(function () {
@@ -735,23 +777,12 @@
     }
 
     function viewSelectedAttachments() {
-        if (!selectedDetail || selectedDetail.possuiAnexo !== "S") {
+        if (!selectedDetail || selectedDetail.possuiAnexo !== "S" || !selectedDetail.nuapuracao) {
             return;
         }
-        setActionBusy(true, "Consultando anexos…");
-        callFacade("listarAnexos", { nuApuracao: selectedDetail.nuapuracao }).then(function (data) {
-            var files = data && Array.isArray(data.files) ? data.files : Array.isArray(data) ? data : [];
-            var first = files[0] || data;
-            var url = first && (first.url || first.downloadUrl);
-            if (!url) {
-                throw createFacadeError("A fachada não retornou um visualizador autorizado.", "INTEGRATION");
-            }
-            window.open(url, "_blank", "noopener");
-        }).catch(function (error) {
-            showActionError(error, "Não foi possível abrir os anexos.");
-        }).finally(function () {
-            setActionBusy(false);
-        });
+        var url = "/facilitatelecom/visualizadorArquivos.facilita?nuApuracao="
+            + encodeURIComponent(selectedDetail.nuapuracao);
+        window.open(url, "_blank");
     }
 
     function openSelectedTask() {
@@ -808,14 +839,18 @@
         console.error("[facilita-apuracao] operação transacional", error);
     }
 
-    function showSuccessDialog(message) {
+    function showSuccessDialog(message, title) {
         var dialog = document.getElementById("success-dialog");
         var text = document.getElementById("success-dialog-message");
+        var heading = document.getElementById("success-dialog-title");
         var close = document.getElementById("success-dialog-close");
         if (!dialog || !text || !close) {
             window.alert(message || "Valor e vencimento atualizados.");
             reloadAfterAction();
             return;
+        }
+        if (heading) {
+            heading.textContent = title || "Alterações salvas";
         }
         text.textContent = message || "Valor e vencimento atualizados.";
         dialog.hidden = false;
