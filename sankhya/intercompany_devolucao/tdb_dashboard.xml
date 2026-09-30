@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gadget>
+    <prompt-parameters>
+        <parameter id="P_CODEMP" description="Empresas devolvedoras" metadata="multiList:Text"
+                   listType="sql" required="true" keep-last="true" keep-date="false"
+                   show-inactives="false" label="Empresa (devolução)" order="0">
+            <expression type="SQL"><![CDATA[
+                SELECT CODEMP AS VALUE, CODEMP || ' - ' || NOMEFANTASIA AS LABEL
+                  FROM TSIEMP
+                 WHERE CODEMP IN (2, 7)
+                 ORDER BY CODEMP
+            ]]></expression>
+        </parameter>
+        <parameter id="P_CODPROD" description="Produto (opcional)" metadata="integer"
+                   required="false" keep-last="true" keep-date="false"
+                   show-inactives="false" label="Código produto" order="1"/>
+    </prompt-parameters>
+    <level id="lvl_intercompany_devolucao" description="Diagnóstico devolução intercompany">
+        <container orientacao="V" tamanhoRelativo="100">
+            <container orientacao="V" tamanhoRelativo="100">
+                <html5component id="html5_intercompany_devolucao" entryPoint="intercompany_devolucao.jsp"/>
+            </container>
+        </container>
+    </level>
+</gadget>
