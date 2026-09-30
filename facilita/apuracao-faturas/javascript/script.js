@@ -12,7 +12,7 @@
     var manualColumnSort = false;
     var visibleColumns = { 0: true, 1: true, 2: true, 3: true, 4: true, 5: true, 6: true, 7: true };
     var facadeConfig = window.FACILITA_APURACAO_FACADE || {};
-    var facadeAppKey = facadeConfig.appKey || "";
+    var facadeModuleName = facadeConfig.moduleName || "0bace5b4-6687-4507-9093-a80a82a03bcb";
     var facadeServiceName = facadeConfig.serviceName || "ApuracaoDashboardSP";
     var facadeServicePath = facadeConfig.servicePath || "/mge/service.sbr";
     var numberFormat = new Intl.NumberFormat("pt-BR", {
@@ -474,10 +474,7 @@
         if (facadeConfig.servicePrefix) {
             return facadeConfig.servicePrefix + "." + operation;
         }
-        if (facadeAppKey) {
-            return facadeAppKey + "@" + facadeServiceName + "." + operation;
-        }
-        return facadeServiceName + "." + operation;
+        return facadeModuleName + "@" + facadeServiceName + "." + operation;
     }
 
     function resolveFacadeServiceUrl(serviceName) {

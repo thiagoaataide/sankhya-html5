@@ -18,6 +18,7 @@
     <script>window.FACILITA_APURACAO_FACADE = {
         appKey: "0bace5b4-6687-4507-9093-a80a82a03bcb",
         serviceName: "ApuracaoDashboardSP",
+        servicePrefix: "0bace5b4-6687-4507-9093-a80a82a03bcb@ApuracaoDashboardSP",
         servicePath: "/mge/service.sbr"
     };</script>
     <script src="${BASE_FOLDER}/javascript/script.js"></script>
