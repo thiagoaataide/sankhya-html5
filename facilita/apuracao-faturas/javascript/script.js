@@ -486,6 +486,55 @@
             + encodeURIComponent(serviceName) + "&outputType=json";
     }
 
+    function acionarBotaoJava(dados, idBotao) {
+        var parametros = Object.keys(dados).map(function (chave) {
+            return {
+                type: "S",
+                paramName: chave,
+                $: dados[chave] == null ? "" : String(dados[chave])
+            };
+        });
+        var serviceName = "ActionButtonsSP.executeJava";
+        return fetch(window.location.origin + "/mge/service.sbr?serviceName=" + serviceName + "&outputType=json", {
+            method: "POST",
+            credentials: "same-origin",
+            headers: { "Content-Type": "application/json;charset=UTF-8", Accept: "application/json" },
+            body: JSON.stringify({
+                serviceName: serviceName,
+                requestBody: {
+                    javaCall: {
+                        actionID: idBotao,
+                        params: { param: parametros }
+                    }
+                }
+            })
+        }).then(function (response) {
+            return response.text().then(function (text) {
+                if (text && /^\s*</.test(text)) {
+                    throw createFacadeError(
+                        "Resposta não é JSON (sessão expirada ou serviço indisponível).",
+                        "INTEGRATION"
+                    );
+                }
+                var data;
+                try {
+                    data = text ? JSON.parse(text) : {};
+                } catch (error) {
+                    throw createFacadeError("O botão de ação retornou uma resposta inválida.", "INTEGRATION");
+                }
+                var status = String(data.status);
+                var mensagem = data.statusMessage || "Valor e vencimento atualizados.";
+                if (status !== "1" && status !== "2") {
+                    throw createFacadeError(
+                        data.statusMessage || "Não foi possível salvar as alterações.",
+                        "INTEGRATION"
+                    );
+                }
+                return mensagem;
+            });
+        });
+    }
+
     function callFacade(operation, payload) {
         var serviceName = resolveFacadeServiceName(operation);
         var requestBody = { request: payload || {} };
@@ -581,20 +630,23 @@
             setDetailMessage("Informe um valor maior ou igual a zero.");
             return;
         }
+        var idBotao = Number(facadeConfig.atualizarBotaoId);
+        if (!idBotao) {
+            setDetailMessage("O botão de ação de valor e vencimento ainda não está configurado.");
+            return;
+        }
         var requestId = ++actionRequestSequence;
         setActionBusy(true, "Salvando alterações…");
-        callFacade("atualizar", {
-            nuApuracao: selectedDetail.nuapuracao,
-            dtvenc: date || null,
-            valor: value,
-            version: observedEditionVersion(selectedDetail),
-            idempotencyKey: "atualizar-" + selectedDetail.nuapuracao + "-" + Date.now()
-        }).then(function () {
+        acionarBotaoJava({
+            NUAPURACAO: String(selectedDetail.nuapuracao),
+            VALOR: valueText,
+            DTVENC: date
+        }, idBotao).then(function (mensagem) {
             if (requestId !== actionRequestSequence) {
                 return;
             }
-            setDetailMessage("Alterações salvas. Recarregando a apuração…");
-            reloadAfterAction();
+            clearDetailMessage();
+            showSuccessDialog(mensagem);
         }).catch(function (error) {
             if (requestId === actionRequestSequence) {
                 showActionError(error, "Não foi possível salvar as alterações.");
@@ -754,6 +806,24 @@
         var message = error && error.message ? error.message : fallback;
         setDetailMessage(message + " Código: " + correlationId);
         console.error("[facilita-apuracao] operação transacional", error);
+    }
+
+    function showSuccessDialog(message) {
+        var dialog = document.getElementById("success-dialog");
+        var text = document.getElementById("success-dialog-message");
+        var close = document.getElementById("success-dialog-close");
+        if (!dialog || !text || !close) {
+            window.alert(message || "Valor e vencimento atualizados.");
+            reloadAfterAction();
+            return;
+        }
+        text.textContent = message || "Valor e vencimento atualizados.";
+        dialog.hidden = false;
+        close.onclick = function () {
+            dialog.hidden = true;
+            reloadAfterAction();
+        };
+        close.focus();
     }
 
     function reloadAfterAction() {

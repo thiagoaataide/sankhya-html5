@@ -19,7 +19,8 @@
         appKey: "0bace5b4-6687-4507-9093-a80a82a03bcb",
         serviceName: "ApuracaoDashboardSP",
         servicePrefix: "0bace5b4-6687-4507-9093-a80a82a03bcb@ApuracaoDashboardSP",
-        servicePath: "/mge/service.sbr"
+        servicePath: "/mge/service.sbr",
+        atualizarBotaoId: 77
     };</script>
     <script src="${BASE_FOLDER}/javascript/script.js"></script>
 </snk:load>
@@ -199,5 +200,12 @@
     </aside>
     </div>
 </main>
+<div id="success-dialog" class="notice-dialog" hidden>
+    <div class="notice-dialog__panel" role="alertdialog" aria-modal="true" aria-labelledby="success-dialog-title">
+        <h2 id="success-dialog-title">Altera&ccedil;&otilde;es salvas</h2>
+        <p id="success-dialog-message"></p>
+        <button type="button" class="btn btn--accent" id="success-dialog-close">Fechar</button>
+    </div>
+</div>
 </body>
 </html>

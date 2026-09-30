@@ -1,11 +1,11 @@
 # Dashboard de Apuração de Faturas — Tarefas
 
 **Design:** `design.md`  
-**Status:** em execução — T1 tem evidência preparada; T2/T3 estão parciais;
-T4–T10 e T15 estão concluídas; T22 é o próximo gate de leitura. T17 foi
-recortada para comandos MVP; T18 aguarda adapters/publicação do Add-on; T21
-valida leitura e comandos principais. T23 decide se anexos/workflow entram no
-aceite; T11/T13 ficam complementares até essa decisão.
+**Status:** em execução — T12 grava valor e vencimento pelo botão de ação `77`
+(`ActionButtonsSP.executeJava`), comprovado na apuração `189300545` em
+2026-09-30. Próximos comandos do gadget (confirmar e nova auditoria) seguem
+esse padrão, não a fachada `ApuracaoDashboardSP`. T18 fica fora do caminho de
+escrita do BI. T22 continua o gate de leitura. T23 decide anexos e workflow.
 
 ## Protocolo de validação
 
@@ -41,7 +41,8 @@ O solicitante conduzirá o UAT manual no Sankhya Om. Não há runner, testes aut
 ```text
 Fase 0 — referência e exposição de dados: T1 → T2 → T3
 Fase 1 — leitura independente: T4 → T5/T6/T7/T8/T9/T10 → T22
-Fase 2 — comandos essenciais: T17 → Add-on T15 → T18 → T12/T14 → T21
+Fase 2 — comandos no gadget: T12 (botão 77, comprovado) → confirmar/nova auditoria no mesmo padrão de botão de ação → T21
+T18 (fachada do add-on) não é mais o transporte de escrita do BI.
 Fase 3 — anexos e workflow: T23 decide o gate; se necessário, T11/T13 → UAT complementar
 Fase 4 — pacote: T16 após o aceite das fases aplicáveis
 ```
@@ -315,7 +316,7 @@ Fase 4 — pacote: T16 após o aceite das fases aplicáveis
 **Tests:** manual — UAT do solicitante  
 **Gate:** UAT transacional
 
-**Status:** ⚠️ Adaptador implementado — a chamada usa `ApuracaoDashboardSP.atualizar`; execução real aguarda T17/T18 e publicação da fachada.
+**Status:** ✅ Comprovado no Om em 2026-09-30 — Salvar alterações chama o botão `77` com `NUAPURACAO`, `VALOR` e `DTVENC`. A apuração `189300545` gravou `05/10/2026` e voltou para `03/10/2026` (`VALOR` `114.95`). O listener deixou contrato, operadora, cliente e vendedor iguais à configuração. Sucesso abre aviso; erro fica no rodapé.
 
 ### T13: Integrar anexo e visualização
 

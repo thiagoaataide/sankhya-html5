@@ -331,6 +331,28 @@ tbody tr:focus-visible { box-shadow: inset 0 0 0 2px var(--accent); }
         overflow: visible;
     }
 }
+.notice-dialog {
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: rgba(38, 50, 56, 0.35);
+}
+.notice-dialog__panel {
+    width: min(420px, 100%);
+    border: 1px solid var(--line);
+    border-top: 4px solid var(--accent);
+    background: var(--surface);
+    box-shadow: var(--shadow);
+    padding: 22px 24px 20px;
+}
+.notice-dialog__panel h2 { margin-bottom: 8px; }
+.notice-dialog__panel p { margin-bottom: 18px; color: var(--ink); }
+.notice-dialog__panel .btn { min-width: 120px; }
+
 @media (max-width: 900px) {
     .shell { padding: 18px 12px 32px; }
     .hero { align-items: flex-start; flex-direction: column; padding: 22px; }

@@ -9,9 +9,11 @@
   `AnexoSistema`, sem criar um SP customizado.
 - O campo neutro utilizado para reacionar o evento será `DESCRICAO`, preservando
   o valor `Foto PCFI`.
-- A Apuração de Faturas seguirá uma migração incremental: gadget HTML5 para
-  consulta e nova fachada transacional da Facilita para mutações, sem build ou
-  deploy do checkout legado `facilitatelecoment`.
+- A Apuração de Faturas segue no gadget HTML5. Valor e vencimento gravam pelo
+  botão de ação `77` (`ActionButtonsSP.executeJava` na instância `bhApuracao`),
+  não pela fachada `ApuracaoDashboardSP`. O `save` JAPE dispara o
+  `ApuracaoListener` do legado. Confirmar, nova auditoria, anexo e tarefa
+  ainda não usam esse caminho.
 - Diferença visual em relação à tela legada é aceitável; o critério é paridade
   funcional, autorização, consistência e rastreabilidade. A decisão está em
   `.specs/features/facilita-apuracao-faturas/adr/ADR-001-fachada-transacional-dashboard.md`.
@@ -22,9 +24,9 @@
 ## Handoff
 
 Dashboard `facilita/apuracao-faturas` — migração da Apuração de Faturas para gadget HTML5.
-Fase atual: T17 parcial; adaptadores de T11–T14 implementados; pacote ZIP recriado.
-Próximo passo: capturar/aprovar requests, respostas e permissões no Om do cliente e
-publicar a fachada `facilitatelecom@ApuracaoDashboardSP` (T18). Sem esse pacote,
-T21/UAT transacional permanece bloqueado.
+Fase atual: T12 comprovada no Om pelo botão `77` (apuração `189300545`, ida a
+`05/10/2026` e volta a `03/10/2026`). Sucesso abre aviso; erro fica no rodapé.
+Próximo passo: confirmar e nova auditoria no mesmo padrão de botão de ação.
+T18 (fachada do add-on) deixa de ser o caminho de escrita do gadget.
 Arquivos alterados: `.specs/features/facilita-apuracao-faturas/`, `facilita/apuracao-faturas/`.
 Alterações não relacionadas em `intercompany/` foram preservadas.
