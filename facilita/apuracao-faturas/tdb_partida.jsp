@@ -34,41 +34,72 @@
             <h1>Apura&ccedil;&atilde;o de Faturas</h1>
             <p class="lede">Consulte, revise e acompanhe o estado das contas antes do faturamento.</p>
         </div>
+        <a class="powered-by hero__brand" href="https://getgruponewtry.netlify.app/" target="_blank" rel="noopener noreferrer">
+            <span>Powered by</span>
+            <img src="${BASE_FOLDER}/css/logo-get.png" alt="GET! Grupo" width="132" height="44">
+        </a>
         <div class="hero__actions" aria-label="A&ccedil;&otilde;es da lista">
             <button type="button" id="btn-refresh" class="btn btn--quiet">Atualizar</button>
             <button type="button" id="btn-export" class="btn btn--accent">Exportar CSV</button>
         </div>
     </header>
 
-    <section class="filter-bar" aria-labelledby="filters-title">
-        <div class="filter-bar__heading">
-            <span class="eyebrow" id="filters-title">VIS&Atilde;O DE TRABALHO</span>
-            <span id="filter-summary" class="muted">Carregando apura&ccedil;&otilde;es...</span>
+    <section class="work-toolbar" aria-label="Resumo e filtros da lista" aria-live="polite">
+        <div class="work-toolbar__metrics">
+            <div class="work-toolbar__metric">
+                <span class="work-toolbar__label">Registros</span>
+                <strong id="row-count">0</strong>
+            </div>
+            <div class="work-toolbar__metric">
+                <span class="work-toolbar__label">Pendentes</span>
+                <strong id="pending-count">0</strong>
+            </div>
+            <div class="work-toolbar__metric">
+                <span class="work-toolbar__label">Com anexo</span>
+                <strong id="attachment-count">0</strong>
+            </div>
         </div>
-        <label class="filter-control filter-control--search">
-            <span>Pesquisar</span>
-            <input type="search" id="filter-text" placeholder="N&uacute;mero, conta, contrato..." autocomplete="off">
-        </label>
-        <label class="filter-control">
-            <span>Campo</span>
-            <select id="filter-field">
-                <option value="T">Todos os campos</option>
-                <option value="NUAPURACAO">Sequ&ecirc;ncia</option>
-                <option value="CODCONTA">Conta</option>
-                <option value="NUMCONTRATO">Contrato</option>
-                <option value="NUNOTA">Faturamento</option>
-                <option value="VALOR">Valor</option>
-                <option value="DTVENC">Vencimento</option>
-            </select>
-        </label>
-        <span class="filter-chip" id="filter-reference">M&ecirc;s corrente</span>
-    </section>
-
-    <section class="status-strip" aria-live="polite">
-        <div><span class="status-strip__label">Registros</span><strong id="row-count">0</strong></div>
-        <div><span class="status-strip__label">Pendentes</span><strong id="pending-count">0</strong></div>
-        <div><span class="status-strip__label">Com anexo</span><strong id="attachment-count">0</strong></div>
-        <div class="status-strip__message" id="state-message">Preparando consulta...</div>
+        <div class="work-toolbar__filters">
+            <div class="work-toolbar__server-filters" role="group" aria-label="Filtros da consulta no servidor">
+                <label class="filter-control filter-control--month" for="server-filter-reference">
+                    <span>M&ecirc;s refer&ecirc;ncia</span>
+                    <input type="month" id="server-filter-reference" name="server-filter-reference" autocomplete="off">
+                </label>
+                <label class="filter-control filter-control--toggle" for="server-filter-pending">
+                    <input type="checkbox" id="server-filter-pending" name="server-filter-pending">
+                    <span>Somente pendentes</span>
+                </label>
+                <label class="filter-control filter-control--toggle" for="server-filter-attachment">
+                    <input type="checkbox" id="server-filter-attachment" name="server-filter-attachment">
+                    <span>Possui anexo</span>
+                </label>
+                <button type="button" class="btn btn--quiet btn--compact" id="btn-apply-server-filters">Aplicar</button>
+            </div>
+            <label class="filter-control filter-control--search">
+                <span>Pesquisar</span>
+                <input type="search" id="filter-text" placeholder="N&uacute;mero, conta, contrato..." autocomplete="off">
+            </label>
+            <label class="filter-control">
+                <span>Campo</span>
+                <select id="filter-field">
+                    <option value="T">Todos os campos</option>
+                    <option value="NUAPURACAO">Sequ&ecirc;ncia</option>
+                    <option value="CODCONTA">Conta</option>
+                    <option value="NUMCONTRATO">Contrato</option>
+                    <option value="NOMECLIENTE">Nome Cliente</option>
+                    <option value="RAZAOCLIENTE">Raz&atilde;o Cliente</option>
+                    <option value="NOMETITULAR">Titular</option>
+                    <option value="NOMEOPERADORA">Operadora</option>
+                    <option value="APELIDOVEND">Consultor relacionamento</option>
+                    <option value="CLIENTE">C&oacute;d. cliente</option>
+                    <option value="OPERADORA">C&oacute;d. operadora</option>
+                    <option value="TITULARIDADE">C&oacute;d. titular</option>
+                    <option value="NUNOTA">Faturamento</option>
+                    <option value="VALOR">Valor</option>
+                    <option value="DTVENC">Vencimento</option>
+                </select>
+            </label>
+        </div>
     </section>
 
     <div class="workbench">
@@ -105,7 +136,8 @@
         <div class="table-wrap" tabindex="0">
             <table id="grid-apuracoes">
                 <thead>
-                <tr id="grid-apuracoes-head"></tr>
+                <tr id="grid-apuracoes-head" class="grid-head-row"></tr>
+                <tr id="grid-apuracoes-filter-head" class="grid-filter-row"></tr>
                 </thead>
                 <tbody id="grid-apuracoes-body"></tbody>
             </table>
@@ -203,9 +235,5 @@
         <button type="button" class="btn btn--accent" id="success-dialog-close">Fechar</button>
     </div>
 </div>
-<a class="powered-by" href="https://getgruponewtry.netlify.app/" target="_blank" rel="noopener noreferrer">
-    <span>Powered by</span>
-    <img src="${BASE_FOLDER}/css/logo-get.png" alt="GET! Grupo" width="96" height="28">
-</a>
 </body>
 </html>

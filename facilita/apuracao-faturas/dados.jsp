@@ -2,20 +2,66 @@
          pageEncoding="UTF-8" isELIgnored="false" %>
 <%@ taglib uri="http://java.sun.com/jstl/core_rt" prefix="c" %>
 <%@ taglib prefix="snk" uri="/WEB-INF/tld/sankhyaUtil.tld" %>
+<%
+    String pReferencia = request.getParameter("P_REFERENCIA");
+    if (pReferencia == null || pReferencia.trim().isEmpty()) {
+        Object legado = pageContext.findAttribute("P_REFERENCIA");
+        if (legado != null) {
+            pReferencia = String.valueOf(legado);
+        }
+    }
+    String pReferenciaSql = "";
+    if (pReferencia != null) {
+        pReferencia = pReferencia.trim().replace("'", "");
+        if (pReferencia.matches("\\d{4}-\\d{2}-\\d{2}.*")) {
+            pReferenciaSql = pReferencia.substring(0, 10);
+        } else if (pReferencia.matches("\\d{2}/\\d{2}/\\d{4}.*")) {
+            String[] partes = pReferencia.split("/");
+            if (partes.length >= 3) {
+                pReferenciaSql = partes[2] + "-" + partes[1] + "-" + partes[0];
+            }
+        }
+    }
+    String pPendentes = request.getParameter("P_SOMENTE_PENDENTES");
+    if (pPendentes == null || pPendentes.trim().isEmpty()) {
+        Object legado = pageContext.findAttribute("P_SOMENTE_PENDENTES");
+        if (legado != null) {
+            pPendentes = String.valueOf(legado);
+        }
+    }
+    String pAnexo = request.getParameter("P_POSSUI_ANEXO");
+    if (pAnexo == null || pAnexo.trim().isEmpty()) {
+        Object legado = pageContext.findAttribute("P_POSSUI_ANEXO");
+        if (legado != null) {
+            pAnexo = String.valueOf(legado);
+        }
+    }
+    pageContext.setAttribute("pReferenciaSql", pReferenciaSql);
+    pageContext.setAttribute("pSomentePendentes", pPendentes == null ? "" : pPendentes.trim().replace("'", ""));
+    pageContext.setAttribute("pPossuiAnexo", pAnexo == null ? "" : pAnexo.trim().replace("'", ""));
+%>
 
 <snk:query var="dados">
 WITH PARAMS AS (
     SELECT TO_DATE(
                CASE
-                   WHEN TRIM('${P_REFERENCIA}') IS NULL
-                     OR LOWER(TRIM('${P_REFERENCIA}')) IN ('null', '0')
+                   WHEN TRIM('${pReferenciaSql}') IS NULL
+                     OR TRIM('${pReferenciaSql}') = ''
+                     OR LOWER(TRIM('${pReferenciaSql}')) IN ('null', '0')
                    THEN TO_CHAR(TRUNC(SYSDATE, 'MM'), 'YYYY-MM-DD')
-                   ELSE SUBSTR('${P_REFERENCIA}', 1, 10)
+                   ELSE SUBSTR('${pReferenciaSql}', 1, 10)
                END,
                'YYYY-MM-DD'
            ) AS DT_REF,
-           CASE WHEN UPPER(TRIM('${P_SOMENTE_PENDENTES}')) = 'S' THEN 'S' ELSE 'N' END AS SOMENTE_PENDENTES,
-           CASE WHEN UPPER(TRIM('${P_POSSUI_ANEXO}')) = 'S' THEN 'S' ELSE 'N' END AS POSSUI_ANEXO
+           CASE
+               WHEN TRIM('${pSomentePendentes}') IS NULL
+                 OR TRIM('${pSomentePendentes}') = ''
+                 OR LOWER(TRIM('${pSomentePendentes}')) IN ('null')
+               THEN 'S'
+               WHEN UPPER(TRIM('${pSomentePendentes}')) = 'S' THEN 'S'
+               ELSE 'N'
+           END AS SOMENTE_PENDENTES,
+           CASE WHEN UPPER(TRIM('${pPossuiAnexo}')) = 'S' THEN 'S' ELSE 'N' END AS POSSUI_ANEXO
       FROM DUAL
 )
 SELECT TO_CHAR(APU.NUAPURACAO) AS NUAPURACAO,
@@ -34,7 +80,9 @@ SELECT TO_CHAR(APU.NUAPURACAO) AS NUAPURACAO,
        NVL(APU.FATURAMENTOLIBERADO, 'N') AS FATURAMENTOLIBERADO,
        NVL(APU.OPERADORA, '0') AS OPERADORA,
        NVL(APU.CLIENTE, '0') AS CLIENTE,
+       NVL(CTA.TITULARIDADE, '0') AS TITULARIDADE,
        NVL(APU.CODVEND, '0') AS CODVEND,
+       NVL(CTR.CODVEND, '0') AS CODVENDREL,
        TO_CHAR(APU.IDINSTPRN) AS IDINSTPRN,
        TO_CHAR(APU.NUFILA) AS NUFILA,
        TO_CHAR(APU.PLANO) AS PLANO,
@@ -43,6 +91,8 @@ SELECT TO_CHAR(APU.NUAPURACAO) AS NUAPURACAO,
        CTA.IDENTIFICADOR AS IDENTIFICADOR,
        OPE.NOMEPARC AS NOMEOPERADORA,
        TIT.NOMEPARC AS NOMETITULAR,
+       CLI.NOMEPARC AS NOMECLIENTE,
+       CLI.RAZAOSOCIAL AS RAZAOCLIENTE,
        TIT.CGC_CPF AS CGCTITULAR,
        VEN.APELIDO AS APELIDOVEND,
        TO_CHAR(CTA.VLREST, 'FM999999999999990D00', 'NLS_NUMERIC_CHARACTERS=''.,''') AS VLREST,
@@ -68,6 +118,7 @@ SELECT TO_CHAR(APU.NUAPURACAO) AS NUAPURACAO,
   LEFT JOIN BH_FACCON CTA ON CTA.CODCONTA = APU.CODCONTA
   LEFT JOIN TGFPAR OPE ON OPE.CODPARC = CTA.OPERADORA
   LEFT JOIN TGFPAR TIT ON TIT.CODPARC = CTA.TITULARIDADE
+  LEFT JOIN TGFPAR CLI ON CLI.CODPARC = APU.CLIENTE
   LEFT JOIN BH_FACCTR CTR ON CTR.NUMCONTRATO = APU.NUMCONTRATO
   LEFT JOIN TGFVEN VEN ON VEN.CODVEND = CTR.CODVEND
   LEFT JOIN BH_FACCCT CFG
@@ -112,7 +163,9 @@ SELECT TO_CHAR(APU.NUAPURACAO) AS NUAPURACAO,
              data-faturamentoliberado="<c:out value='${row.FATURAMENTOLIBERADO}'/>"
              data-operadora="<c:out value='${row.OPERADORA}'/>"
              data-cliente="<c:out value='${row.CLIENTE}'/>"
+             data-titularidade="<c:out value='${row.TITULARIDADE}'/>"
              data-codvend="<c:out value='${row.CODVEND}'/>"
+             data-codvend-rel="<c:out value='${row.CODVENDREL}'/>"
              data-idinstprn="<c:out value='${row.IDINSTPRN}'/>"
              data-nufila="<c:out value='${row.NUFILA}'/>"
              data-plano="<c:out value='${row.PLANO}'/>"
@@ -121,6 +174,8 @@ SELECT TO_CHAR(APU.NUAPURACAO) AS NUAPURACAO,
              data-identificador="<c:out value='${row.IDENTIFICADOR}'/>"
              data-nome-operadora="<c:out value='${row.NOMEOPERADORA}'/>"
              data-nome-titular="<c:out value='${row.NOMETITULAR}'/>"
+             data-nome-cliente="<c:out value='${row.NOMECLIENTE}'/>"
+             data-razao-cliente="<c:out value='${row.RAZAOCLIENTE}'/>"
              data-cgc-titular="<c:out value='${row.CGCTITULAR}'/>"
              data-apelido-vend="<c:out value='${row.APELIDOVEND}'/>"
              data-vlrest="<c:out value='${row.VLREST}'/>"

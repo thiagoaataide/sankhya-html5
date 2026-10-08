@@ -10,10 +10,15 @@
     var sortState = { key: "numcontrato", direction: 1 };
     var pageState = { page: 1, pageSize: 15 };
     var manualColumnSort = false;
+    var gridRefreshSequence = 0;
+    var CLIENT_FILTER_KEY = "facilita-apuracao-faturas:client-filters:v1";
+    var SERVER_QUERY_KEY = "facilita-apuracao-faturas:server-query:v1";
     var GRID_COLUMNS = [
         { id: "nuapuracao", label: "Sequência", kind: "text", visible: true },
         { id: "codconta", label: "Conta", kind: "text", visible: true },
         { id: "numcontrato", label: "Contrato", kind: "text", visible: true },
+        { id: "nomeCliente", label: "Nome Cliente", kind: "text", visible: true },
+        { id: "razaoCliente", label: "Razão Cliente", kind: "text", visible: true },
         { id: "referencia", label: "Referência", kind: "date", visible: true },
         { id: "dtvenc", label: "Vencimento", kind: "date", visible: true },
         { id: "valor", label: "Valor", kind: "money", visible: true },
@@ -55,6 +60,11 @@
         visibleColumns[column.id] = column.visible;
     });
     var pinnedColumns = [];
+    var columnOrder = GRID_COLUMNS.map(function (column) {
+        return column.id;
+    });
+    var columnDragState = { columnId: "" };
+    var columnFilters = {};
     var facadeConfig = window.FACILITA_APURACAO_FACADE || {};
     var facadeModuleName = facadeConfig.moduleName || "0bace5b4-6687-4507-9093-a80a82a03bcb";
     var facadeServiceName = facadeConfig.serviceName || "ApuracaoDashboardSP";
@@ -68,15 +78,18 @@
 
     function init() {
         try {
+            captureServerFilterQuery();
+            syncServerFilterControlsFromQuery(getServerFilterQuery());
             rows = readRows();
             filteredRows = rows.slice();
             buildGridChrome();
             loadColumnPreferences();
             loadPagePreferences();
             bindEvents();
+            restoreClientFilterState();
             syncSortWithSearchField();
             applySorting();
-            render();
+            applyFilters(true);
             setLoading(false);
         } catch (error) {
             showError("A consulta não pôde ser preparada.");
@@ -109,7 +122,9 @@
                 faturamentoliberado: flag(data.faturamentoliberado),
                 operadora: data.operadora || "",
                 cliente: data.cliente || "",
+                titularidade: data.titularidade || "",
                 codvend: data.codvend || "",
+                codvendRel: data.codvendRel || "",
                 idinstprn: data.idinstprn || "",
                 nufila: data.nufila || "",
                 plano: data.plano || "",
@@ -118,6 +133,8 @@
                 identificador: data.identificador || "",
                 nomeOperadora: data.nomeOperadora || "",
                 nomeTitular: data.nomeTitular || "",
+                nomeCliente: data.nomeCliente || "",
+                razaoCliente: data.razaoCliente || "",
                 cgcTitular: data.cgcTitular || "",
                 apelidoVend: data.apelidoVend || "",
                 vlrest: parseNumber(data.vlrest),
@@ -145,11 +162,15 @@
         var uploadButton = document.getElementById("btn-upload-attachment");
 
         if (search) {
-            search.addEventListener("input", applyFilters);
+            search.addEventListener("input", function () {
+                saveClientFilterState();
+                applyFilters();
+            });
         }
         if (field) {
             field.addEventListener("change", function () {
                 manualColumnSort = false;
+                saveClientFilterState();
                 applyFilters();
             });
         }
@@ -182,7 +203,22 @@
         }
         if (refresh) {
             refresh.addEventListener("click", function () {
-                window.location.reload();
+                refreshGridFromServer(selectedRow ? selectedRow.nuapuracao : "");
+            });
+        }
+        var applyServerFilters = document.getElementById("btn-apply-server-filters");
+        if (applyServerFilters) {
+            applyServerFilters.addEventListener("click", function () {
+                reloadWithServerFilters(readServerFilterControls());
+            });
+        }
+        var serverReference = document.getElementById("server-filter-reference");
+        if (serverReference) {
+            serverReference.addEventListener("keydown", function (event) {
+                if (event.key === "Enter") {
+                    event.preventDefault();
+                    reloadWithServerFilters(readServerFilterControls());
+                }
             });
         }
         if (exportButton) {
@@ -221,6 +257,7 @@
         menu.appendChild(buildSelectAllLabel());
         orderedColumns().forEach(function (column) {
             var th = document.createElement("th");
+            var dragHandle = document.createElement("button");
             var sortButton = document.createElement("button");
             var marker = document.createElement("span");
             var pinButton = document.createElement("button");
@@ -231,6 +268,46 @@
             if (column.kind === "money") {
                 th.className = "num";
             }
+            dragHandle.type = "button";
+            dragHandle.className = "col-drag-handle";
+            dragHandle.draggable = true;
+            dragHandle.setAttribute("aria-label", "Reordenar coluna " + column.label);
+            dragHandle.title = "Arraste para reordenar";
+            dragHandle.textContent = "\u2261";
+            dragHandle.addEventListener("dragstart", function (event) {
+                columnDragState.columnId = column.id;
+                event.dataTransfer.setData("text/plain", column.id);
+                event.dataTransfer.effectAllowed = "move";
+                th.classList.add("is-column-dragging");
+            });
+            dragHandle.addEventListener("dragend", function () {
+                columnDragState.columnId = "";
+                th.classList.remove("is-column-dragging");
+                clearColumnDropTargets();
+            });
+            th.addEventListener("dragover", function (event) {
+                if (!columnDragState.columnId || columnDragState.columnId === column.id) {
+                    return;
+                }
+                event.preventDefault();
+                event.dataTransfer.dropEffect = "move";
+                th.classList.add("is-column-drop-target");
+            });
+            th.addEventListener("dragleave", function (event) {
+                if (event.currentTarget.contains(event.relatedTarget)) {
+                    return;
+                }
+                th.classList.remove("is-column-drop-target");
+            });
+            th.addEventListener("drop", function (event) {
+                event.preventDefault();
+                th.classList.remove("is-column-drop-target");
+                var dragId = event.dataTransfer.getData("text/plain") || columnDragState.columnId;
+                if (!dragId || dragId === column.id) {
+                    return;
+                }
+                moveColumnInOrder(dragId, column.id);
+            });
             sortButton.type = "button";
             sortButton.className = "sort-trigger";
             sortButton.setAttribute("data-sort", column.id);
@@ -282,6 +359,7 @@
                 render();
             });
             columnMenu.appendChild(pinItem);
+            th.appendChild(dragHandle);
             th.appendChild(sortButton);
             th.appendChild(pinButton);
             th.appendChild(columnMenu);
@@ -312,33 +390,142 @@
             label.appendChild(document.createTextNode(" " + column.label));
             menu.appendChild(label);
         });
+        buildColumnFilterRow();
         syncSelectAll();
     }
 
-    function orderedColumns() {
-        var pinned = [];
-        pinnedColumns.forEach(function (id) {
-            var column = columnById(id);
-            if (column) {
-                pinned.push(column);
+    function buildColumnFilterRow() {
+        var filterHead = document.getElementById("grid-apuracoes-filter-head");
+        if (!filterHead) {
+            return;
+        }
+        filterHead.textContent = "";
+        orderedColumns().forEach(function (column) {
+            var th = document.createElement("th");
+            var input = document.createElement("input");
+            th.scope = "col";
+            th.className = "col-filter-cell" + (column.kind === "money" ? " num" : "");
+            th.setAttribute("data-column", column.id);
+            input.type = "search";
+            input.className = "col-filter-input";
+            input.setAttribute("data-column-filter", column.id);
+            input.setAttribute("aria-label", "Filtrar coluna " + column.label);
+            input.placeholder = "Filtrar";
+            input.autocomplete = "off";
+            input.spellcheck = false;
+            input.value = columnFilters[column.id] || "";
+            input.addEventListener("input", function () {
+                syncColumnFiltersFromDom();
+                saveClientFilterState();
+                applyFilters();
+            });
+            input.addEventListener("mousedown", function (event) {
+                event.stopPropagation();
+            });
+            th.appendChild(input);
+            filterHead.appendChild(th);
+        });
+        applyColumnVisibility();
+        applyPinnedColumn();
+    }
+
+    function syncColumnFiltersFromDom() {
+        columnFilters = {};
+        Array.prototype.forEach.call(
+            document.querySelectorAll("#grid-apuracoes-filter-head input[data-column-filter]"),
+            function (input) {
+                var id = input.getAttribute("data-column-filter");
+                var value = String(input.value || "").trim();
+                if (value) {
+                    columnFilters[id] = value;
+                }
+            }
+        );
+    }
+
+    function restoreColumnFilterInputs() {
+        Array.prototype.forEach.call(
+            document.querySelectorAll("#grid-apuracoes-filter-head input[data-column-filter]"),
+            function (input) {
+                var id = input.getAttribute("data-column-filter");
+                input.value = columnFilters[id] || "";
+            }
+        );
+    }
+
+    function normalizeColumnOrder(order) {
+        var seen = {};
+        var normalized = [];
+        (order || []).forEach(function (id) {
+            if (!columnById(id) || seen[id]) {
+                return;
+            }
+            seen[id] = true;
+            normalized.push(id);
+        });
+        GRID_COLUMNS.forEach(function (column) {
+            if (!seen[column.id]) {
+                normalized.push(column.id);
             }
         });
-        var rest = GRID_COLUMNS.filter(function (column) {
-            return pinnedColumns.indexOf(column.id) < 0;
+        return normalized;
+    }
+
+    function orderedColumns() {
+        var order = normalizeColumnOrder(columnOrder);
+        var pinned = [];
+        var rest = [];
+        order.forEach(function (id) {
+            var column = columnById(id);
+            if (!column) {
+                return;
+            }
+            if (pinnedColumns.indexOf(id) >= 0) {
+                pinned.push(column);
+            } else {
+                rest.push(column);
+            }
         });
         return pinned.concat(rest);
     }
 
-    function placePinnedColumn() {
-        var head = document.getElementById("grid-apuracoes-head");
-        if (!head) {
+    function moveColumnInOrder(dragId, targetId) {
+        columnOrder = normalizeColumnOrder(columnOrder);
+        var fromIndex = columnOrder.indexOf(dragId);
+        var targetIndex = columnOrder.indexOf(targetId);
+        if (fromIndex < 0 || targetIndex < 0 || fromIndex === targetIndex) {
             return;
         }
+        columnOrder.splice(fromIndex, 1);
+        if (fromIndex < targetIndex) {
+            targetIndex -= 1;
+        }
+        columnOrder.splice(targetIndex, 0, dragId);
+        manualColumnSort = true;
+        saveColumnPreferences();
+        placePinnedColumn();
+        render();
+    }
+
+    function clearColumnDropTargets() {
+        Array.prototype.forEach.call(document.querySelectorAll("#grid-apuracoes-head th.is-column-drop-target"), function (cell) {
+            cell.classList.remove("is-column-drop-target");
+        });
+    }
+
+    function placePinnedColumn() {
+        var head = document.getElementById("grid-apuracoes-head");
+        var filterHead = document.getElementById("grid-apuracoes-filter-head");
         orderedColumns().forEach(function (column) {
-            var cell = head.querySelector('[data-column="' + column.id + '"]');
-            if (cell) {
-                head.appendChild(cell);
-            }
+            [head, filterHead].forEach(function (row) {
+                if (!row) {
+                    return;
+                }
+                var cell = row.querySelector('[data-column="' + column.id + '"]');
+                if (cell) {
+                    row.appendChild(cell);
+                }
+            });
         });
     }
 
@@ -381,21 +568,27 @@
         checkbox.indeterminate = marked > 0 && marked < total;
     }
 
-    function applyFilters() {
+    function applyFilters(preservePage) {
         var search = document.getElementById("filter-text");
         var field = document.getElementById("filter-field");
         var query = search ? search.value.trim().toLowerCase() : "";
         var selectedField = field ? field.value : "T";
+        var previousPage = pageState.page;
 
         filteredRows = rows.filter(function (row) {
-            if (!query) {
-                return true;
-            }
-            return searchableValues(row, selectedField).some(function (value) {
+            if (query && !searchableValues(row, selectedField).some(function (value) {
                 return matchesSearchToken(value, query);
-            });
+            })) {
+                return false;
+            }
+            return rowMatchesColumnFilters(row);
         });
-        pageState.page = 1;
+        if (preservePage) {
+            pageState.page = previousPage;
+            clampPage();
+        } else {
+            pageState.page = 1;
+        }
         syncSortWithSearchField();
         applySorting();
 
@@ -406,6 +599,278 @@
             document.dispatchEvent(new CustomEvent("facilita-apuracao:cleared"));
         }
         render();
+    }
+
+    function captureServerFilterQuery() {
+        var search = window.location.search;
+        if (search && search.length > 1) {
+            try {
+                window.sessionStorage.setItem(SERVER_QUERY_KEY, search);
+            } catch (error) {
+                console.warn("[facilita-apuracao] não foi possível guardar parâmetros do gadget", error);
+            }
+        }
+    }
+
+    function getServerFilterQuery() {
+        if (window.location.search && window.location.search.length > 1) {
+            captureServerFilterQuery();
+            return window.location.search;
+        }
+        captureServerFilterQuery();
+        try {
+            var stored = window.sessionStorage.getItem(SERVER_QUERY_KEY);
+            if (stored) {
+                return stored;
+            }
+        } catch (error) {
+            console.warn("[facilita-apuracao] parâmetros do gadget indisponíveis", error);
+        }
+        return "";
+    }
+
+    function parseServerFilterParams(search) {
+        var params = {};
+        var raw = String(search || "").replace(/^\?/, "");
+        if (!raw) {
+            return params;
+        }
+        raw.split("&").forEach(function (pair) {
+            if (!pair) {
+                return;
+            }
+            var parts = pair.split("=");
+            var key = decodeURIComponent(parts[0] || "");
+            var value = decodeURIComponent((parts[1] || "").replace(/\+/g, " "));
+            if (key) {
+                params[key] = value;
+            }
+        });
+        return params;
+    }
+
+    function currentMonthReferenceIso() {
+        var now = new Date();
+        var year = now.getFullYear();
+        var month = now.getMonth() + 1;
+        return year + "-" + (month < 10 ? "0" : "") + month + "-01";
+    }
+
+    function monthInputFromReference(value) {
+        if (!value) {
+            return currentMonthReferenceIso().slice(0, 7);
+        }
+        var iso = String(value).trim();
+        if (/^\d{4}-\d{2}/.test(iso)) {
+            return iso.slice(0, 7);
+        }
+        var br = iso.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+        if (br) {
+            return br[3] + "-" + br[2];
+        }
+        return currentMonthReferenceIso().slice(0, 7);
+    }
+
+    function referenceFromMonthInput(monthValue) {
+        if (!monthValue || !/^\d{4}-\d{2}$/.test(monthValue)) {
+            return currentMonthReferenceIso();
+        }
+        return monthValue + "-01";
+    }
+
+    function defaultServerFilterValues() {
+        return {
+            P_REFERENCIA: currentMonthReferenceIso(),
+            P_SOMENTE_PENDENTES: "S",
+            P_POSSUI_ANEXO: "N"
+        };
+    }
+
+    function resolveServerFilterValues(params) {
+        var defaults = defaultServerFilterValues();
+        var resolved = {
+            P_REFERENCIA: params.P_REFERENCIA || defaults.P_REFERENCIA,
+            P_SOMENTE_PENDENTES: params.P_SOMENTE_PENDENTES || defaults.P_SOMENTE_PENDENTES,
+            P_POSSUI_ANEXO: params.P_POSSUI_ANEXO || defaults.P_POSSUI_ANEXO
+        };
+        if (resolved.P_SOMENTE_PENDENTES !== "S") {
+            resolved.P_SOMENTE_PENDENTES = "N";
+        }
+        if (resolved.P_POSSUI_ANEXO !== "S") {
+            resolved.P_POSSUI_ANEXO = "N";
+        }
+        return resolved;
+    }
+
+    function mergeServerFilterParams(search, values) {
+        var merged = parseServerFilterParams(search);
+        var resolved = resolveServerFilterValues(values || {});
+        merged.P_REFERENCIA = resolved.P_REFERENCIA;
+        merged.P_SOMENTE_PENDENTES = resolved.P_SOMENTE_PENDENTES;
+        merged.P_POSSUI_ANEXO = resolved.P_POSSUI_ANEXO;
+        return merged;
+    }
+
+    function syncServerFilterControlsFromQuery(search) {
+        var resolved = resolveServerFilterValues(parseServerFilterParams(search));
+        var monthInput = document.getElementById("server-filter-reference");
+        var pendingInput = document.getElementById("server-filter-pending");
+        var attachmentInput = document.getElementById("server-filter-attachment");
+        if (monthInput) {
+            monthInput.value = monthInputFromReference(resolved.P_REFERENCIA);
+        }
+        if (pendingInput) {
+            pendingInput.checked = resolved.P_SOMENTE_PENDENTES === "S";
+        }
+        if (attachmentInput) {
+            attachmentInput.checked = resolved.P_POSSUI_ANEXO === "S";
+        }
+    }
+
+    function readServerFilterControls() {
+        var monthInput = document.getElementById("server-filter-reference");
+        var pendingInput = document.getElementById("server-filter-pending");
+        var attachmentInput = document.getElementById("server-filter-attachment");
+        return {
+            P_REFERENCIA: referenceFromMonthInput(monthInput ? monthInput.value : ""),
+            P_SOMENTE_PENDENTES: pendingInput && pendingInput.checked ? "S" : "N",
+            P_POSSUI_ANEXO: attachmentInput && attachmentInput.checked ? "S" : "N"
+        };
+    }
+
+    function reloadWithServerFilters(values) {
+        saveClientFilterState();
+        var targetUrl;
+        try {
+            targetUrl = new URL(window.location.href);
+        } catch (error) {
+            targetUrl = null;
+        }
+        if (targetUrl) {
+            var merged = mergeServerFilterParams(targetUrl.search, values);
+            targetUrl.searchParams.set("P_REFERENCIA", merged.P_REFERENCIA);
+            targetUrl.searchParams.set("P_SOMENTE_PENDENTES", merged.P_SOMENTE_PENDENTES);
+            targetUrl.searchParams.set("P_POSSUI_ANEXO", merged.P_POSSUI_ANEXO);
+            try {
+                window.sessionStorage.setItem(SERVER_QUERY_KEY, targetUrl.search);
+            } catch (storageError) {
+                console.warn("[facilita-apuracao] não foi possível guardar parâmetros do gadget", storageError);
+            }
+            window.location.assign(targetUrl.toString());
+            return;
+        }
+        var fallback = mergeServerFilterParams(window.location.search, values);
+        var query = "?"
+            + "P_REFERENCIA=" + encodeURIComponent(fallback.P_REFERENCIA)
+            + "&P_SOMENTE_PENDENTES=" + encodeURIComponent(fallback.P_SOMENTE_PENDENTES)
+            + "&P_POSSUI_ANEXO=" + encodeURIComponent(fallback.P_POSSUI_ANEXO);
+        window.location.assign(window.location.pathname + query + (window.location.hash || ""));
+    }
+
+    function saveClientFilterState() {
+        var search = document.getElementById("filter-text");
+        var field = document.getElementById("filter-field");
+        syncColumnFiltersFromDom();
+        try {
+            window.sessionStorage.setItem(CLIENT_FILTER_KEY, JSON.stringify({
+                search: search ? search.value : "",
+                field: field ? field.value : "T",
+                page: pageState.page,
+                pageSize: pageState.pageSize,
+                columnFilters: columnFilters
+            }));
+        } catch (error) {
+            console.warn("[facilita-apuracao] não foi possível guardar filtros locais", error);
+        }
+    }
+
+    function restoreClientFilterState() {
+        try {
+            var raw = window.sessionStorage.getItem(CLIENT_FILTER_KEY);
+            if (!raw) {
+                return;
+            }
+            var state = JSON.parse(raw);
+            var search = document.getElementById("filter-text");
+            var field = document.getElementById("filter-field");
+            var pageSize = document.getElementById("page-size");
+            if (search && state.search != null) {
+                search.value = state.search;
+            }
+            if (field && state.field) {
+                field.value = state.field;
+            }
+            if (state.pageSize) {
+                pageState.pageSize = parsePageSize(String(state.pageSize));
+                if (pageSize) {
+                    pageSize.value = String(pageState.pageSize);
+                }
+            }
+            if (state.page) {
+                pageState.page = Math.max(1, parseInt(state.page, 10) || 1);
+            }
+            if (state.columnFilters && typeof state.columnFilters === "object") {
+                columnFilters = state.columnFilters;
+                restoreColumnFilterInputs();
+            }
+        } catch (error) {
+            console.warn("[facilita-apuracao] filtros locais inválidos", error);
+        }
+    }
+
+    function refreshGridFromServer(selectedNuapuracao) {
+        var requestId = ++gridRefreshSequence;
+        saveClientFilterState();
+        setLoading(true);
+        var base = window.FACILITA_APURACAO_BASE || "";
+        var url = base + "/dados.jsp" + getServerFilterQuery();
+        fetch(url, { credentials: "same-origin", headers: { Accept: "text/html" } })
+            .then(function (response) {
+                if (!response.ok) {
+                    throw new Error("HTTP " + response.status);
+                }
+                return response.text();
+            })
+            .then(function (html) {
+                if (requestId !== gridRefreshSequence) {
+                    return;
+                }
+                var documentResponse = new DOMParser().parseFromString(html, "text/html");
+                var newContainer = documentResponse.getElementById("data-container");
+                var currentContainer = document.getElementById("data-container");
+                if (!newContainer || !currentContainer) {
+                    throw new Error("data-container ausente na resposta");
+                }
+                currentContainer.innerHTML = newContainer.innerHTML;
+                rows = readRows();
+                restoreClientFilterState();
+                applyFilters(true);
+                var targetId = selectedNuapuracao || (selectedRow && selectedRow.nuapuracao) || "";
+                if (targetId) {
+                    var match = filteredRows.find(function (row) {
+                        return row.nuapuracao === targetId;
+                    });
+                    if (match) {
+                        selectRow(match);
+                    } else {
+                        selectedRow = null;
+                        clearDetailSelection();
+                        document.dispatchEvent(new CustomEvent("facilita-apuracao:cleared"));
+                    }
+                }
+            })
+            .catch(function (error) {
+                if (requestId !== gridRefreshSequence) {
+                    return;
+                }
+                showError("Não foi possível atualizar a lista.");
+                console.error("[facilita-apuracao] atualização da grade", error);
+            })
+            .finally(function () {
+                if (requestId === gridRefreshSequence) {
+                    setLoading(false);
+                }
+            });
     }
 
     function matchesSearchToken(value, query) {
@@ -425,11 +890,74 @@
         return variants;
     }
 
+    function columnFilterSearchValues(row, column) {
+        var values = [];
+        if (column.kind === "estado") {
+            values.push(row.confirmado === "S" ? "Confirmada" : "Pendente");
+            values.push(row.confirmado === "S" ? "confirmada" : "pendente");
+            return values;
+        }
+        if (column.kind === "flag") {
+            values.push(row[column.id] === "S" ? "Sim" : "Não");
+            values.push(row[column.id] === "S" ? "sim" : "nao");
+            values.push(row[column.id] || "");
+            return values;
+        }
+        var formatted = formatColumnValue(column, row);
+        if (formatted && formatted !== "—") {
+            values.push(formatted);
+        }
+        var raw = row[column.id];
+        if (raw != null && raw !== "") {
+            values.push(String(raw));
+        }
+        if (column.kind === "date") {
+            values = values.concat(dateSearchVariants(row[column.id]));
+        }
+        if (column.kind === "money") {
+            values.push(numberFormat.format(row[column.id] || 0));
+        }
+        return values;
+    }
+
+    function rowMatchesColumnFilters(row) {
+        var keys = Object.keys(columnFilters);
+        if (!keys.length) {
+            return true;
+        }
+        for (var i = 0; i < keys.length; i++) {
+            var columnId = keys[i];
+            var query = String(columnFilters[columnId] || "").trim().toLowerCase();
+            if (!query) {
+                continue;
+            }
+            var column = columnById(columnId);
+            if (!column || !visibleColumns[columnId]) {
+                continue;
+            }
+            var matches = columnFilterSearchValues(row, column).some(function (value) {
+                return matchesSearchToken(value, query);
+            });
+            if (!matches) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     function searchableValues(row, selectedField) {
         var fields = {
             NUAPURACAO: [row.nuapuracao],
             CODCONTA: [row.codconta],
             NUMCONTRATO: [row.numcontrato],
+            NOMECLIENTE: [row.nomeCliente],
+            RAZAOCLIENTE: [row.razaoCliente],
+            NOMETITULAR: [row.nomeTitular],
+            NOMEOPERADORA: [row.nomeOperadora],
+            APELIDOVEND: [row.apelidoVend],
+            CLIENTE: [row.cliente],
+            OPERADORA: [row.operadora],
+            TITULARIDADE: [row.titularidade],
             NUNOTA: [row.nunota],
             VALOR: [numberFormat.format(row.valor)],
             DTVENC: dateSearchVariants(row.dtvenc),
@@ -443,6 +971,8 @@
             row.nuapuracao,
             row.codconta,
             row.numcontrato,
+            row.nomeCliente,
+            row.razaoCliente,
             row.nunota,
             numberFormat.format(row.valor)
         ].concat(dateSearchVariants(row.dtvenc)).concat(dateSearchVariants(row.referencia));
@@ -515,12 +1045,14 @@
     }
 
     function updateSummary() {
-        var message = filteredRows.length === 0
-            ? "Nenhum resultado para os filtros atuais."
-            : filteredRows.length + " apuração(ões) disponível(is).";
-        setText("filter-summary", message);
-        setText("grid-meta", selectedRow ? "Apuração " + selectedRow.nuapuracao + " selecionada." : "Uma linha por apuração");
-        setText("state-message", message);
+        var gridMeta = document.getElementById("grid-meta");
+        if (selectedRow) {
+            setText("grid-meta", "Apuração " + selectedRow.nuapuracao + " selecionada.");
+        } else if (filteredRows.length === 0) {
+            setText("grid-meta", "Nenhum resultado para os filtros atuais.");
+        } else {
+            setText("grid-meta", "Uma linha por apuração");
+        }
     }
 
     function selectRow(row) {
@@ -1193,6 +1725,7 @@
             reloadAfterAction();
             return;
         }
+        var selectedNuapuracao = selectedDetail ? selectedDetail.nuapuracao : "";
         if (heading) {
             heading.textContent = title || "Alterações salvas";
         }
@@ -1200,15 +1733,15 @@
         dialog.hidden = false;
         close.onclick = function () {
             dialog.hidden = true;
-            reloadAfterAction();
+            reloadAfterAction(selectedNuapuracao);
         };
         close.focus();
     }
 
-    function reloadAfterAction() {
+    function reloadAfterAction(selectedNuapuracao) {
         window.setTimeout(function () {
-            window.location.reload();
-        }, 700);
+            refreshGridFromServer(selectedNuapuracao || "");
+        }, 200);
     }
 
     function getInputValue(id) {
@@ -1266,6 +1799,14 @@
             NUAPURACAO: "nuapuracao",
             CODCONTA: "codconta",
             NUMCONTRATO: "numcontrato",
+            NOMECLIENTE: "nomeCliente",
+            RAZAOCLIENTE: "razaoCliente",
+            NOMETITULAR: "nomeTitular",
+            NOMEOPERADORA: "nomeOperadora",
+            APELIDOVEND: "apelidoVend",
+            CLIENTE: "cliente",
+            OPERADORA: "operadora",
+            TITULARIDADE: "titularidade",
             NUNOTA: "nunota",
             VALOR: "valor",
             DTVENC: "dtvenc"
@@ -1474,6 +2015,9 @@
                     return visibleColumns[id] && columnById(id);
                 });
             }
+            if (preferences.order && preferences.order.length) {
+                columnOrder = normalizeColumnOrder(preferences.order);
+            }
             Array.prototype.forEach.call(document.querySelectorAll(".column-picker input[data-column]"), function (checkbox) {
                 checkbox.checked = visibleColumns[checkbox.getAttribute("data-column")];
             });
@@ -1488,7 +2032,8 @@
         try {
             window.localStorage.setItem("facilita-apuracao-faturas:columns:v2", JSON.stringify({
                 columns: visibleColumns,
-                pinned: pinnedColumns
+                pinned: pinnedColumns,
+                order: normalizeColumnOrder(columnOrder)
             }));
         } catch (error) {
             console.warn("[facilita-apuracao] preferências de colunas não persistidas");
@@ -1531,7 +2076,7 @@
     }
 
     function exportCsv() {
-        var columns = GRID_COLUMNS.filter(function (column) {
+        var columns = orderedColumns().filter(function (column) {
             return visibleColumns[column.id];
         });
         var lines = [columns.map(function (column) { return csvCell(column.label); }).join(";")];

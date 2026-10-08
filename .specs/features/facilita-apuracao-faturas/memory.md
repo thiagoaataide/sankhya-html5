@@ -59,3 +59,18 @@ O selo "Powered by" com `css/logo-get.png` fica fixo no canto inferior direito. 
 - Sem Service Provider novo no GET_FACILITA.
 - Ver anexo continua em `/facilitatelecom/visualizadorArquivos.facilita?nuApuracao=`.
 - Consulta da grade continua na JSP do gadget.
+
+## Parâmetros da consulta (servidor)
+
+`P_REFERENCIA`, `P_SOMENTE_PENDENTES` e `P_POSSUI_ANEXO` ficam na faixa
+`work-toolbar` do gadget (não no painel lateral do componente). O
+`tdb_dashboard.xml` não declara mais `prompt-parameters` (republicar para sumir
+o painel lateral). **Aplicar** atualiza só `P_*` na URL atual do componente,
+preservando os demais parâmetros do `html5component`; **Atualizar** mantém a
+consulta vigente.
+
+## Ajustes pós-entrega
+
+Correções e refinamentos incrementais após a apresentação ficam na feature
+`.specs/features/facilita-apuracao-faturas-ajustes/` (`spec.md`, `tasks.md`).
+Cada pedido do solicitante entra como task **A*n*** nesse `tasks.md`.
