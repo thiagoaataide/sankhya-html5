@@ -38,6 +38,23 @@ SELECT TO_CHAR(APU.NUAPURACAO) AS NUAPURACAO,
        TO_CHAR(APU.IDINSTPRN) AS IDINSTPRN,
        TO_CHAR(APU.NUFILA) AS NUFILA,
        TO_CHAR(APU.PLANO) AS PLANO,
+       TO_CHAR(APU.TAMANHOANEXO, 'FM999999999999990D00', 'NLS_NUMERIC_CHARACTERS=''.,''') AS TAMANHOANEXO,
+       TO_CHAR(APU.SEQUENCIAFATURAMENTO) AS SEQUENCIAFATURAMENTO,
+       CTA.IDENTIFICADOR AS IDENTIFICADOR,
+       OPE.NOMEPARC AS NOMEOPERADORA,
+       TIT.NOMEPARC AS NOMETITULAR,
+       TIT.CGC_CPF AS CGCTITULAR,
+       VEN.APELIDO AS APELIDOVEND,
+       TO_CHAR(CTA.VLREST, 'FM999999999999990D00', 'NLS_NUMERIC_CHARACTERS=''.,''') AS VLREST,
+       TO_CHAR(CFG.DATAINI, 'YYYY-MM-DD') AS CFGDATAINI,
+       TO_CHAR(CFG.DATAFIN, 'YYYY-MM-DD') AS CFGDATAFIN,
+       TO_CHAR(CFG.VLRREF, 'FM999999999999990D00', 'NLS_NUMERIC_CHARACTERS=''.,''') AS CFGVLRREF,
+       TO_CHAR(CFG.VLRFIXO, 'FM999999999999990D00', 'NLS_NUMERIC_CHARACTERS=''.,''') AS CFGVLRFIXO,
+       LGO.LOGIN AS ACESSO_LOGIN,
+       LGO.CPF AS ACESSO_CPF,
+       LGO.EMAIL AS ACESSO_EMAIL,
+       LGO.LINHA_GESTORA AS ACESSO_LINHA,
+       LGO.CGC_CPF AS ACESSO_CNPJ,
        CASE
            WHEN EXISTS (
                SELECT 1
@@ -48,6 +65,18 @@ SELECT TO_CHAR(APU.NUAPURACAO) AS NUAPURACAO,
            ELSE 'N'
        END AS POSSUIANEXO
   FROM BH_FACAPU APU
+  LEFT JOIN BH_FACCON CTA ON CTA.CODCONTA = APU.CODCONTA
+  LEFT JOIN TGFPAR OPE ON OPE.CODPARC = CTA.OPERADORA
+  LEFT JOIN TGFPAR TIT ON TIT.CODPARC = CTA.TITULARIDADE
+  LEFT JOIN BH_FACCTR CTR ON CTR.NUMCONTRATO = APU.NUMCONTRATO
+  LEFT JOIN TGFVEN VEN ON VEN.CODVEND = CTR.CODVEND
+  LEFT JOIN BH_FACCCT CFG
+    ON CFG.NUMCONTRATO = APU.NUMCONTRATO
+   AND CFG.SEQUENCIA = APU.SEQUENCIACON
+  LEFT JOIN BH_FACLGO LGO
+    ON LGO.CODPARC = CTA.CODPARCGESTOR
+   AND LGO.CODCONTATO = CTA.CODCONTATOGESTOR
+   AND LGO.CODOPERADORA = CTA.OPERADORA
  CROSS JOIN PARAMS P
  WHERE APU.REFERENCIA >= P.DT_REF
    AND APU.REFERENCIA < ADD_MONTHS(P.DT_REF, 1)
@@ -87,6 +116,23 @@ SELECT TO_CHAR(APU.NUAPURACAO) AS NUAPURACAO,
              data-idinstprn="<c:out value='${row.IDINSTPRN}'/>"
              data-nufila="<c:out value='${row.NUFILA}'/>"
              data-plano="<c:out value='${row.PLANO}'/>"
+             data-tamanho-anexo="<c:out value='${row.TAMANHOANEXO}'/>"
+             data-sequencia-faturamento="<c:out value='${row.SEQUENCIAFATURAMENTO}'/>"
+             data-identificador="<c:out value='${row.IDENTIFICADOR}'/>"
+             data-nome-operadora="<c:out value='${row.NOMEOPERADORA}'/>"
+             data-nome-titular="<c:out value='${row.NOMETITULAR}'/>"
+             data-cgc-titular="<c:out value='${row.CGCTITULAR}'/>"
+             data-apelido-vend="<c:out value='${row.APELIDOVEND}'/>"
+             data-vlrest="<c:out value='${row.VLREST}'/>"
+             data-cfg-dataini="<c:out value='${row.CFGDATAINI}'/>"
+             data-cfg-datafin="<c:out value='${row.CFGDATAFIN}'/>"
+             data-cfg-vlrref="<c:out value='${row.CFGVLRREF}'/>"
+             data-cfg-vlrfixo="<c:out value='${row.CFGVLRFIXO}'/>"
+             data-acesso-login="<c:out value='${row.ACESSO_LOGIN}'/>"
+             data-acesso-cpf="<c:out value='${row.ACESSO_CPF}'/>"
+             data-acesso-email="<c:out value='${row.ACESSO_EMAIL}'/>"
+             data-acesso-linha="<c:out value='${row.ACESSO_LINHA}'/>"
+             data-acesso-cnpj="<c:out value='${row.ACESSO_CNPJ}'/>"
              data-possui-anexo="<c:out value='${row.POSSUIANEXO}'/>"></div>
     </c:forEach>
 </div>

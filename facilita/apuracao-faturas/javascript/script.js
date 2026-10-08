@@ -10,7 +10,51 @@
     var sortState = { key: "numcontrato", direction: 1 };
     var pageState = { page: 1, pageSize: 15 };
     var manualColumnSort = false;
-    var visibleColumns = { 0: true, 1: true, 2: true, 3: true, 4: true, 5: true, 6: true, 7: true };
+    var GRID_COLUMNS = [
+        { id: "nuapuracao", label: "Sequência", kind: "text", visible: true },
+        { id: "codconta", label: "Conta", kind: "text", visible: true },
+        { id: "numcontrato", label: "Contrato", kind: "text", visible: true },
+        { id: "referencia", label: "Referência", kind: "date", visible: true },
+        { id: "dtvenc", label: "Vencimento", kind: "date", visible: true },
+        { id: "valor", label: "Valor", kind: "money", visible: true },
+        { id: "confirmado", label: "Estado", kind: "estado", visible: true },
+        { id: "possuiAnexo", label: "Anexo", kind: "flag", visible: true },
+        { id: "identificador", label: "Identificador", kind: "text", visible: false },
+        { id: "nomeOperadora", label: "Operadora", kind: "text", visible: false },
+        { id: "nomeTitular", label: "Titular", kind: "text", visible: false },
+        { id: "cgcTitular", label: "CNPJ titular", kind: "text", visible: false },
+        { id: "apelidoVend", label: "Consultor", kind: "text", visible: false },
+        { id: "nunota", label: "Faturamento", kind: "text", visible: false },
+        { id: "sequenciacon", label: "Sequência contratual", kind: "text", visible: false },
+        { id: "referenciaadiada", label: "Referência adiada", kind: "date", visible: false },
+        { id: "valorref", label: "Valor de referência", kind: "money", visible: false },
+        { id: "vlrest", label: "Valor estimado", kind: "money", visible: false },
+        { id: "auditoriafinalizada", label: "Auditoria finalizada", kind: "flag", visible: false },
+        { id: "emailenviado", label: "E-mail enviado", kind: "flag", visible: false },
+        { id: "faturamentoliberado", label: "Faturamento liberado", kind: "flag", visible: false },
+        { id: "operadora", label: "Cód. operadora", kind: "text", visible: false },
+        { id: "cliente", label: "Cód. cliente", kind: "text", visible: false },
+        { id: "codvend", label: "Cód. consultor", kind: "text", visible: false },
+        { id: "idinstprn", label: "Fluxo", kind: "text", visible: false },
+        { id: "nufila", label: "Fila de e-mail", kind: "text", visible: false },
+        { id: "plano", label: "Plano", kind: "text", visible: false },
+        { id: "tamanhoAnexo", label: "Tamanho do anexo", kind: "money", visible: false },
+        { id: "sequenciaFaturamento", label: "Sequência faturamento", kind: "text", visible: false },
+        { id: "cfgDataini", label: "Início da configuração", kind: "date", visible: false },
+        { id: "cfgDatafin", label: "Fim da configuração", kind: "date", visible: false },
+        { id: "cfgVlrref", label: "Valor ref. configuração", kind: "money", visible: false },
+        { id: "cfgVlrfixo", label: "Valor fixo", kind: "money", visible: false },
+        { id: "acessoLogin", label: "Login", kind: "text", visible: false },
+        { id: "acessoCpf", label: "CPF acesso", kind: "text", visible: false },
+        { id: "acessoEmail", label: "E-mail acesso", kind: "text", visible: false },
+        { id: "acessoCnpj", label: "CNPJ acesso", kind: "text", visible: false },
+        { id: "acessoLinha", label: "Linha gestora", kind: "text", visible: false }
+    ];
+    var visibleColumns = {};
+    GRID_COLUMNS.forEach(function (column) {
+        visibleColumns[column.id] = column.visible;
+    });
+    var pinnedColumns = [];
     var facadeConfig = window.FACILITA_APURACAO_FACADE || {};
     var facadeModuleName = facadeConfig.moduleName || "0bace5b4-6687-4507-9093-a80a82a03bcb";
     var facadeServiceName = facadeConfig.serviceName || "ApuracaoDashboardSP";
@@ -26,6 +70,7 @@
         try {
             rows = readRows();
             filteredRows = rows.slice();
+            buildGridChrome();
             loadColumnPreferences();
             loadPagePreferences();
             bindEvents();
@@ -68,6 +113,23 @@
                 idinstprn: data.idinstprn || "",
                 nufila: data.nufila || "",
                 plano: data.plano || "",
+                tamanhoAnexo: parseNumber(data.tamanhoAnexo),
+                sequenciaFaturamento: data.sequenciaFaturamento || "",
+                identificador: data.identificador || "",
+                nomeOperadora: data.nomeOperadora || "",
+                nomeTitular: data.nomeTitular || "",
+                cgcTitular: data.cgcTitular || "",
+                apelidoVend: data.apelidoVend || "",
+                vlrest: parseNumber(data.vlrest),
+                cfgDataini: data.cfgDataini || "",
+                cfgDatafin: data.cfgDatafin || "",
+                cfgVlrref: parseNumber(data.cfgVlrref),
+                cfgVlrfixo: parseNumber(data.cfgVlrfixo),
+                acessoLogin: data.acessoLogin || "",
+                acessoCpf: data.acessoCpf || "",
+                acessoEmail: data.acessoEmail || "",
+                acessoCnpj: data.acessoCnpj || "",
+                acessoLinha: data.acessoLinha || "",
                 adDhalter: data.adDhalter || "",
                 possuiAnexo: flag(data.possuiAnexo)
             };
@@ -139,23 +201,184 @@
             loadDetail(event.detail);
         });
         document.addEventListener("facilita-apuracao:cleared", clearDetailSelection);
-        Array.prototype.forEach.call(document.querySelectorAll(".sort-trigger"), function (trigger) {
-            trigger.addEventListener("click", function () {
-                sortBy(trigger.getAttribute("data-sort"));
-            });
+        document.addEventListener("click", closeColumnMenus);
+    }
+
+    function closeColumnMenus() {
+        Array.prototype.forEach.call(document.querySelectorAll(".col-menu"), function (menu) {
+            menu.hidden = true;
         });
-        Array.prototype.forEach.call(document.querySelectorAll(".column-picker input[data-column]"), function (checkbox) {
+    }
+
+    function buildGridChrome() {
+        var head = document.getElementById("grid-apuracoes-head");
+        var menu = document.getElementById("column-picker-menu");
+        if (!head || !menu) {
+            return;
+        }
+        head.textContent = "";
+        menu.textContent = "";
+        menu.appendChild(buildSelectAllLabel());
+        orderedColumns().forEach(function (column) {
+            var th = document.createElement("th");
+            var sortButton = document.createElement("button");
+            var marker = document.createElement("span");
+            var pinButton = document.createElement("button");
+            var label = document.createElement("label");
+            var checkbox = document.createElement("input");
+            th.scope = "col";
+            th.setAttribute("data-column", column.id);
+            if (column.kind === "money") {
+                th.className = "num";
+            }
+            sortButton.type = "button";
+            sortButton.className = "sort-trigger";
+            sortButton.setAttribute("data-sort", column.id);
+            sortButton.appendChild(document.createTextNode(column.label + " "));
+            marker.setAttribute("aria-hidden", "true");
+            sortButton.appendChild(marker);
+            sortButton.addEventListener("click", function () {
+                sortBy(column.id);
+            });
+            pinButton.type = "button";
+            pinButton.className = "col-menu-trigger";
+            pinButton.setAttribute("data-pin", column.id);
+            pinButton.setAttribute("aria-haspopup", "menu");
+            pinButton.setAttribute("aria-label", "Opções de " + column.label);
+            pinButton.textContent = "\u22EE";
+            var columnMenu = document.createElement("div");
+            var pinItem = document.createElement("button");
+            columnMenu.className = "col-menu";
+            columnMenu.hidden = true;
+            columnMenu.setAttribute("role", "menu");
+            pinItem.type = "button";
+            pinItem.className = "col-menu__item";
+            pinItem.setAttribute("role", "menuitem");
+            pinItem.textContent = "Fixar coluna";
+            pinButton.addEventListener("click", function (event) {
+                event.stopPropagation();
+                var willOpen = columnMenu.hidden;
+                closeColumnMenus();
+                if (!willOpen) {
+                    return;
+                }
+                var box = pinButton.getBoundingClientRect();
+                columnMenu.hidden = false;
+                columnMenu.style.position = "fixed";
+                columnMenu.style.top = (box.bottom + 4) + "px";
+                columnMenu.style.left = Math.max(8, box.right - 168) + "px";
+            });
+            pinItem.addEventListener("click", function (event) {
+                event.stopPropagation();
+                var index = pinnedColumns.indexOf(column.id);
+                if (index >= 0) {
+                    pinnedColumns.splice(index, 1);
+                } else {
+                    pinnedColumns.push(column.id);
+                }
+                columnMenu.hidden = true;
+                saveColumnPreferences();
+                placePinnedColumn();
+                render();
+            });
+            columnMenu.appendChild(pinItem);
+            th.appendChild(sortButton);
+            th.appendChild(pinButton);
+            th.appendChild(columnMenu);
+            head.appendChild(th);
+
+            checkbox.type = "checkbox";
+            checkbox.setAttribute("data-column", column.id);
+            checkbox.checked = visibleColumns[column.id];
             checkbox.addEventListener("change", function () {
                 var checkedColumns = document.querySelectorAll(".column-picker input[data-column]:checked");
                 if (!checkbox.checked && checkedColumns.length === 0) {
                     checkbox.checked = true;
                     return;
                 }
-                visibleColumns[checkbox.getAttribute("data-column")] = checkbox.checked;
+                visibleColumns[column.id] = checkbox.checked;
+                if (!checkbox.checked) {
+                    var pinnedIndex = pinnedColumns.indexOf(column.id);
+                    if (pinnedIndex >= 0) {
+                        pinnedColumns.splice(pinnedIndex, 1);
+                    }
+                }
+                syncSelectAll();
                 saveColumnPreferences();
-                applyColumnVisibility();
+                placePinnedColumn();
+                render();
             });
+            label.appendChild(checkbox);
+            label.appendChild(document.createTextNode(" " + column.label));
+            menu.appendChild(label);
         });
+        syncSelectAll();
+    }
+
+    function orderedColumns() {
+        var pinned = [];
+        pinnedColumns.forEach(function (id) {
+            var column = columnById(id);
+            if (column) {
+                pinned.push(column);
+            }
+        });
+        var rest = GRID_COLUMNS.filter(function (column) {
+            return pinnedColumns.indexOf(column.id) < 0;
+        });
+        return pinned.concat(rest);
+    }
+
+    function placePinnedColumn() {
+        var head = document.getElementById("grid-apuracoes-head");
+        if (!head) {
+            return;
+        }
+        orderedColumns().forEach(function (column) {
+            var cell = head.querySelector('[data-column="' + column.id + '"]');
+            if (cell) {
+                head.appendChild(cell);
+            }
+        });
+    }
+
+    function buildSelectAllLabel() {
+        var label = document.createElement("label");
+        var checkbox = document.createElement("input");
+        label.className = "column-picker__all";
+        checkbox.type = "checkbox";
+        checkbox.id = "column-select-all";
+        checkbox.addEventListener("change", function () {
+            GRID_COLUMNS.forEach(function (column) {
+                visibleColumns[column.id] = checkbox.checked || column.id === "nuapuracao";
+            });
+            pinnedColumns = pinnedColumns.filter(function (id) {
+                return visibleColumns[id];
+            });
+            Array.prototype.forEach.call(document.querySelectorAll(".column-picker input[data-column]"), function (item) {
+                item.checked = visibleColumns[item.getAttribute("data-column")];
+            });
+            syncSelectAll();
+            saveColumnPreferences();
+            placePinnedColumn();
+            render();
+        });
+        label.appendChild(checkbox);
+        label.appendChild(document.createTextNode(" Selecionar todos"));
+        return label;
+    }
+
+    function syncSelectAll() {
+        var checkbox = document.getElementById("column-select-all");
+        if (!checkbox) {
+            return;
+        }
+        var total = GRID_COLUMNS.length;
+        var marked = GRID_COLUMNS.filter(function (column) {
+            return visibleColumns[column.id];
+        }).length;
+        checkbox.checked = marked === total;
+        checkbox.indeterminate = marked > 0 && marked < total;
     }
 
     function applyFilters() {
@@ -251,6 +474,10 @@
             tr.addEventListener("click", function () {
                 selectRow(row);
             });
+            tr.addEventListener("dblclick", function () {
+                selectRow(row);
+                openTask(row);
+            });
             tr.addEventListener("keydown", function (event) {
                 if (event.key === "Enter" || event.key === " ") {
                     event.preventDefault();
@@ -258,20 +485,18 @@
                 }
             });
 
-            tr.appendChild(textCell(row.nuapuracao));
-            tr.appendChild(textCell(row.codconta));
-            tr.appendChild(textCell(row.numcontrato));
-            tr.appendChild(textCell(formatDate(row.referencia)));
-            tr.appendChild(textCell(formatDate(row.dtvenc)));
-            tr.appendChild(numberCell(row.valor));
-            tr.appendChild(statusCell(row));
-            tr.appendChild(textCell(row.possuiAnexo === "S" ? "Sim" : "Não"));
-            Array.prototype.forEach.call(tr.children, function (cell, index) {
-                cell.setAttribute("data-column", String(index));
+            orderedColumns().forEach(function (column) {
+                var cell = column.kind === "estado" ? statusCell(row) : textCell(formatColumnValue(column, row));
+                if (column.kind === "money") {
+                    cell.className = "num";
+                }
+                cell.setAttribute("data-column", column.id);
+                tr.appendChild(cell);
             });
             body.appendChild(tr);
         });
         applyColumnVisibility();
+        applyPinnedColumn();
 
         if (empty) {
             empty.hidden = filteredRows.length !== 0;
@@ -311,8 +536,7 @@
         var sequence = ++detailRequestSequence;
         var panel = document.getElementById("detail-panel");
         var empty = document.getElementById("detail-empty");
-        var body = document.getElementById("detail-body");
-        if (!panel || !empty || !body) {
+        if (!panel || !empty) {
             return;
         }
         selectedDetail = null;
@@ -320,7 +544,7 @@
         panel.hidden = false;
         setText("detail-title", "Apuração " + row.nuapuracao);
         setText("detail-state", "Carregando");
-        body.textContent = "Carregando detalhe...";
+        clearAccess();
         setDetailActions(null);
         clearDetailMessage();
 
@@ -349,7 +573,6 @@
                 if (sequence !== detailRequestSequence) {
                     return;
                 }
-                body.textContent = "Não foi possível carregar o detalhe.";
                 setText("detail-state", "Indisponível");
                 setDetailMessage("A consulta do detalhe falhou. Código: FA-D" + Date.now());
                 console.error("[facilita-apuracao] detalhe", error);
@@ -366,6 +589,14 @@
         }
         if (empty) {
             empty.hidden = false;
+        }
+        clearAccess();
+    }
+
+    function clearAccess() {
+        var access = document.getElementById("access-body");
+        if (access) {
+            access.textContent = "";
         }
     }
 
@@ -390,49 +621,83 @@
             nufila: data.nufila || "",
             plano: data.plano || "",
             adDhalter: data.adDhalter || "",
-            possuiAnexo: flag(data.possuiAnexo)
+            possuiAnexo: flag(data.possuiAnexo),
+            acessoLogin: data.acessoLogin || "",
+            acessoSenha: data.acessoSenha || "",
+            acessoCpf: data.acessoCpf || "",
+            acessoCnpj: data.acessoCnpj || "",
+            acessoEmail: data.acessoEmail || "",
+            acessoLinha: data.acessoLinha || ""
         };
     }
 
     function renderDetail(detail) {
-        var labels = [
-            ["Conta", detail.codconta],
-            ["Contrato", detail.numcontrato],
-            ["Nota de faturamento", detail.nunota],
-            ["Sequência contratual", detail.sequenciacon],
-            ["Referência", formatDate(detail.referencia)],
-            ["Referência adiada", formatDate(detail.referenciaadiada)],
-            ["Vencimento", formatDate(detail.dtvenc)],
-            ["Valor", numberFormat.format(detail.valor || 0)],
-            ["Valor de referência", numberFormat.format(detail.valorref || 0)],
-            ["Auditoria finalizada", detail.auditoriafinalizada === "S" ? "Sim" : "Não"],
-            ["E-mail enviado", detail.emailenviado === "S" ? "Sim" : "Não"],
-            ["Faturamento liberado", detail.faturamentoliberado === "S" ? "Sim" : "Não"],
-            ["Plano", detail.plano],
-            ["Anexo", detail.possuiAnexo === "S" ? "Sim" : "Não"]
-        ];
-        var body = document.getElementById("detail-body");
-        if (!body) {
-            return;
-        }
-        body.textContent = "";
-        labels.forEach(function (entry) {
-            var item = document.createElement("div");
-            var label = document.createElement("span");
-            var value = document.createElement("strong");
-            item.className = "detail-grid__item";
-            label.className = "detail-grid__label";
-            value.className = "detail-grid__value";
-            label.textContent = entry[0];
-            value.textContent = entry[1] || "—";
-            item.appendChild(label);
-            item.appendChild(value);
-            body.appendChild(item);
-        });
+        renderAccess(detail);
         setInputValue("edit-dtvenc", detail.dtvenc);
         setInputValue("edit-valor", detail.valor ? String(detail.valor) : "");
         setText("detail-state", detail.confirmado === "S" ? "Confirmada" : "Pendente");
         setDetailActions(detail);
+    }
+
+    function renderAccess(detail) {
+        var body = document.getElementById("access-body");
+        if (!body) {
+            return;
+        }
+        body.textContent = "";
+        [
+            ["Login", detail.acessoLogin],
+            ["CPF", detail.acessoCpf],
+            ["E-mail", detail.acessoEmail],
+            ["CNPJ", detail.acessoCnpj],
+            ["Linha gestora", detail.acessoLinha]
+        ].forEach(function (entry) {
+            appendDetailItem(body, entry[0], entry[1] || "não definido");
+        });
+        appendSecretItem(body, detail.acessoSenha || "");
+    }
+
+    function appendDetailItem(body, labelText, valueText) {
+        var item = document.createElement("div");
+        var label = document.createElement("span");
+        var value = document.createElement("strong");
+        item.className = "detail-grid__item";
+        label.className = "detail-grid__label";
+        value.className = "detail-grid__value";
+        label.textContent = labelText;
+        value.textContent = valueText || "—";
+        item.appendChild(label);
+        item.appendChild(value);
+        body.appendChild(item);
+    }
+
+    function appendSecretItem(body, senha) {
+        var item = document.createElement("div");
+        var label = document.createElement("span");
+        var row = document.createElement("div");
+        var value = document.createElement("strong");
+        var button = document.createElement("button");
+        var visivel = false;
+        item.className = "detail-grid__item";
+        label.className = "detail-grid__label";
+        row.className = "access-secret";
+        value.className = "detail-grid__value";
+        label.textContent = "Senha";
+        value.textContent = senha ? "••••••••" : "não definido";
+        button.type = "button";
+        button.className = "btn btn--quiet";
+        button.textContent = "Mostrar";
+        button.hidden = !senha;
+        button.onclick = function () {
+            visivel = !visivel;
+            value.textContent = visivel ? senha : "••••••••";
+            button.textContent = visivel ? "Ocultar" : "Mostrar";
+        };
+        row.appendChild(value);
+        row.appendChild(button);
+        item.appendChild(label);
+        item.appendChild(row);
+        body.appendChild(item);
     }
 
     function setDetailActions(detail) {
@@ -445,7 +710,7 @@
             task.disabled = !detail || !detail.idinstprn;
             task.title = detail && detail.idinstprn ? "Consultar tarefa pendente" : "Sem processo de workflow";
             task.onclick = function () {
-                openSelectedTask();
+                openTask(detail);
             };
         }
         if (attachment) {
@@ -518,7 +783,7 @@
         });
     }
 
-    function acionarBotaoJava(dados, idBotao) {
+    function acionarBotaoJava(dados, idBotao, linha) {
         var parametros = Object.keys(dados).map(function (chave) {
             return {
                 type: "S",
@@ -526,19 +791,56 @@
                 $: dados[chave] == null ? "" : String(dados[chave])
             };
         });
+        var campos = [];
+        if (linha) {
+            Object.keys(linha).forEach(function (chave) {
+                if (linha[chave] != null && linha[chave] !== "") {
+                    campos.push({ fieldName: chave, $: String(linha[chave]) });
+                }
+            });
+        }
+        var javaCall = {
+            actionID: idBotao,
+            params: { param: parametros }
+        };
+        if (campos.length) {
+            javaCall.rows = { row: { field: campos } };
+        }
         var serviceName = "ActionButtonsSP.executeJava";
+        var requestBody = { javaCall: javaCall };
+        if (window.ServiceProxy && typeof window.ServiceProxy.callService === "function") {
+            return new Promise(function (resolve, reject) {
+                window.ServiceProxy.callService(serviceName, requestBody).then(function (response) {
+                    try {
+                        var data = response && response.responseBody ? response : { status: "1", statusMessage: response };
+                        var status = String(data.status == null ? "1" : data.status);
+                        var mensagem = data.statusMessage || (response && response.statusMessage) || "";
+                        if (!mensagem && response && response.responseBody) {
+                            mensagem = response.responseBody.statusMessage || response.responseBody.$ || "";
+                        }
+                        if (status !== "1" && status !== "2") {
+                            throw createFacadeError(
+                                data.statusMessage || "Não foi possível executar o botão de ação.",
+                                "INTEGRATION"
+                            );
+                        }
+                        resolve(mensagem || "Valor e vencimento atualizados.");
+                    } catch (error) {
+                        reject(error);
+                    }
+                }, function (error) {
+                    var mensagem = error && (error.statusMessage || error.message) || "Não foi possível executar o botão de ação.";
+                    reject(createFacadeError(mensagem, "INTEGRATION"));
+                });
+            });
+        }
         return fetch(window.location.origin + "/mge/service.sbr?serviceName=" + serviceName + "&outputType=json", {
             method: "POST",
             credentials: "same-origin",
             headers: { "Content-Type": "application/json;charset=UTF-8", Accept: "application/json" },
             body: JSON.stringify({
                 serviceName: serviceName,
-                requestBody: {
-                    javaCall: {
-                        actionID: idBotao,
-                        params: { param: parametros }
-                    }
-                }
+                requestBody: requestBody
             })
         }).then(function (response) {
             return response.text().then(function (text) {
@@ -699,18 +1001,25 @@
         if (!window.confirm(message)) {
             return;
         }
+        var idBotao = Number(facadeConfig.confirmarBotaoId);
+        if (!idBotao) {
+            setDetailMessage("O botão de confirmar ainda não está configurado.");
+            return;
+        }
         var requestId = ++actionRequestSequence;
         setActionBusy(true, "Processando operação…");
-        callFacade(operation, {
-            nuApuracao: selectedDetail.nuapuracao,
-            version: observedEditionVersion(selectedDetail),
-            idempotencyKey: operation + "-" + selectedDetail.nuapuracao + "-" + Date.now()
-        }).then(function () {
+        acionarBotaoJava({
+            NUAPURACAO: String(selectedDetail.nuapuracao)
+        }, idBotao, {
+            NUAPURACAO: String(selectedDetail.nuapuracao)
+        }).then(function (mensagem) {
             if (requestId !== actionRequestSequence) {
                 return;
             }
-            setDetailMessage("Operação concluída. Recarregando a apuração…");
-            reloadAfterAction();
+            clearDetailMessage();
+            showSuccessDialog(mensagem, selectedDetail.confirmado === "S"
+                ? "Nova auditoria solicitada"
+                : "Apuração confirmada");
         }).catch(function (error) {
             if (requestId === actionRequestSequence) {
                 showActionError(error, "Não foi possível concluir a operação.");
@@ -785,16 +1094,25 @@
         window.open(url, "_blank");
     }
 
-    function openSelectedTask() {
-        if (!selectedDetail || !selectedDetail.idinstprn) {
-            setDetailMessage("Não há tarefa pendente para esta apuração.");
+    function openTask(row) {
+        var alvo = row || selectedDetail;
+        if (!alvo || !alvo.idinstprn) {
+            setDetailMessage("Não há processo de workflow para esta apuração.");
+            return;
+        }
+        var idBotao = Number(facadeConfig.tarefaBotaoId);
+        if (!idBotao) {
+            setDetailMessage("O botão de ação da tarefa ainda não está configurado.");
             return;
         }
         setActionBusy(true, "Consultando tarefa…");
-        callFacade("getTarefa", { nuApuracao: selectedDetail.nuapuracao }).then(function (data) {
-            var taskId = data && (data.idInstTar || data.IDINSTTAR || data.idinsttar || data.value);
-            taskId = taskId || data;
-            if (!taskId) {
+        acionarBotaoJava({
+            NUAPURACAO: String(alvo.nuapuracao)
+        }, idBotao, {
+            NUAPURACAO: String(alvo.nuapuracao)
+        }).then(function (mensagem) {
+            var taskId = String(mensagem || "").trim();
+            if (!/^\d+$/.test(taskId) || taskId === "0") {
                 throw createFacadeError("Não há tarefa pendente para esta apuração.", "BUSINESS_RULE");
             }
             var openApp = typeof window.openApp === "function"
@@ -804,7 +1122,7 @@
                 throw createFacadeError("A abertura de tarefas não está disponível neste contexto.", "INTEGRATION");
             }
             openApp("br.com.sankhya.workflow.listatarefa", {
-                IDINSTPRN: selectedDetail.idinstprn,
+                IDINSTPRN: alvo.idinstprn,
                 IDINSTTAR: taskId
             });
         }).catch(function (error) {
@@ -833,10 +1151,36 @@
     }
 
     function showActionError(error, fallback) {
-        var correlationId = error && error.correlationId ? error.correlationId : "FA-" + Date.now();
         var message = error && error.message ? error.message : fallback;
-        setDetailMessage(message + " Código: " + correlationId);
+        clearDetailMessage();
+        showErrorDialog(message);
         console.error("[facilita-apuracao] operação transacional", error);
+    }
+
+    function mensagemVisivel(texto) {
+        var limpo = String(texto || "").replace(/<[^>]+>/g, " ");
+        limpo = limpo.replace(/Regra Personalizada:\s*/gi, "");
+        limpo = limpo.replace(/\s+/g, " ").trim();
+        if (/nenhuma tarefa pendente para a apura/i.test(limpo)) {
+            return "Nenhuma tarefa pendente para a apuração.";
+        }
+        return limpo;
+    }
+
+    function showErrorDialog(message) {
+        var dialog = document.getElementById("error-dialog");
+        var text = document.getElementById("error-dialog-message");
+        var close = document.getElementById("error-dialog-close");
+        if (!dialog || !text || !close) {
+            window.alert(message || "Não foi possível concluir a operação.");
+            return;
+        }
+        text.textContent = mensagemVisivel(message) || "Não foi possível concluir a operação.";
+        dialog.hidden = false;
+        close.onclick = function () {
+            dialog.hidden = true;
+        };
+        close.focus();
     }
 
     function showSuccessDialog(message, title) {
@@ -1041,16 +1385,43 @@
         });
     }
 
+    function columnById(id) {
+        for (var i = 0; i < GRID_COLUMNS.length; i++) {
+            if (GRID_COLUMNS[i].id === id) {
+                return GRID_COLUMNS[i];
+            }
+        }
+        return null;
+    }
+
+    function formatColumnValue(column, row) {
+        var value = row[column.id];
+        if (column.kind === "date") {
+            return formatDate(value);
+        }
+        if (column.kind === "money") {
+            return numberFormat.format(value || 0);
+        }
+        if (column.kind === "flag") {
+            return value === "S" ? "Sim" : "Não";
+        }
+        if (column.kind === "estado") {
+            return value === "S" ? "Confirmada" : "Pendente";
+        }
+        return value || "—";
+    }
+
     function sortableValue(row, key) {
-        if (key === "valor") {
-            return row.valor || 0;
+        var column = columnById(key);
+        if (column && column.kind === "money") {
+            return row[key] || 0;
+        }
+        if (column && column.kind === "date") {
+            return String(row[key] || "");
         }
         if (key === "nuapuracao" || key === "codconta" || key === "numcontrato" || key === "nunota") {
             var numeric = parseInt(String(row[key] || "0"), 10);
             return isFinite(numeric) ? numeric : 0;
-        }
-        if (key === "dtvenc" || key === "referencia") {
-            return String(row[key] || "");
         }
         return String(row[key] || "").toLowerCase();
     }
@@ -1081,22 +1452,33 @@
 
     function loadColumnPreferences() {
         try {
-            var stored = window.localStorage.getItem("facilita-apuracao-faturas:columns:v1");
+            var stored = window.localStorage.getItem("facilita-apuracao-faturas:columns:v2");
             var preferences = stored ? JSON.parse(stored) : null;
-            if (!preferences || typeof preferences !== "object") {
+            if (!preferences || typeof preferences.columns !== "object") {
                 return;
             }
-            Object.keys(visibleColumns).forEach(function (index) {
-                if (typeof preferences[index] === "boolean") {
-                    visibleColumns[index] = preferences[index];
+            Object.keys(visibleColumns).forEach(function (id) {
+                if (typeof preferences.columns[id] === "boolean") {
+                    visibleColumns[id] = preferences.columns[id];
                 }
             });
-            if (!Object.keys(visibleColumns).some(function (index) { return visibleColumns[index]; })) {
-                visibleColumns[0] = true;
+            if (!Object.keys(visibleColumns).some(function (id) { return visibleColumns[id]; })) {
+                visibleColumns.nuapuracao = true;
+            }
+            var storedPins = preferences.pinned;
+            if (typeof storedPins === "string") {
+                storedPins = storedPins ? [storedPins] : [];
+            }
+            if (storedPins && storedPins.length) {
+                pinnedColumns = storedPins.filter(function (id) {
+                    return visibleColumns[id] && columnById(id);
+                });
             }
             Array.prototype.forEach.call(document.querySelectorAll(".column-picker input[data-column]"), function (checkbox) {
                 checkbox.checked = visibleColumns[checkbox.getAttribute("data-column")];
             });
+            syncSelectAll();
+            placePinnedColumn();
         } catch (error) {
             console.warn("[facilita-apuracao] preferências de colunas indisponíveis");
         }
@@ -1104,32 +1486,59 @@
 
     function saveColumnPreferences() {
         try {
-            window.localStorage.setItem("facilita-apuracao-faturas:columns:v1", JSON.stringify(visibleColumns));
+            window.localStorage.setItem("facilita-apuracao-faturas:columns:v2", JSON.stringify({
+                columns: visibleColumns,
+                pinned: pinnedColumns
+            }));
         } catch (error) {
             console.warn("[facilita-apuracao] preferências de colunas não persistidas");
         }
     }
 
-    function exportCsv() {
-        var headers = ["Sequência", "Conta", "Contrato", "Referência", "Vencimento", "Valor", "Estado", "Anexo"];
-        var keys = ["nuapuracao", "codconta", "numcontrato", "referencia", "dtvenc", "valor", "confirmado", "possuiAnexo"];
-        var columns = headers.map(function (header, index) {
-            return { header: header, key: keys[index], index: index };
-        }).filter(function (column) {
-            return visibleColumns[column.index];
+    function applyPinnedColumn() {
+        var head = document.getElementById("grid-apuracoes-head");
+        var offsets = {};
+        var left = 0;
+        var lastId = "";
+        pinnedColumns.forEach(function (id) {
+            if (!head || !visibleColumns[id]) {
+                return;
+            }
+            var headerCell = head.querySelector('[data-column="' + id + '"]');
+            if (!headerCell || headerCell.hidden) {
+                return;
+            }
+            offsets[id] = left;
+            left += headerCell.offsetWidth;
+            lastId = id;
         });
-        var lines = [columns.map(function (column) { return csvCell(column.header); }).join(";")];
+        var cells = document.querySelectorAll("#grid-apuracoes [data-column]");
+        Array.prototype.forEach.call(cells, function (cell) {
+            var id = cell.getAttribute("data-column");
+            var pinned = Object.prototype.hasOwnProperty.call(offsets, id) && !cell.hidden;
+            cell.classList.toggle("is-pinned", pinned);
+            cell.classList.toggle("is-pinned-last", pinned && id === lastId);
+            cell.style.left = pinned ? offsets[id] + "px" : "";
+        });
+        Array.prototype.forEach.call(document.querySelectorAll(".col-menu-trigger"), function (button) {
+            var active = pinnedColumns.indexOf(button.getAttribute("data-pin")) >= 0;
+            var item = button.parentNode.querySelector(".col-menu__item");
+            button.setAttribute("aria-pressed", String(active));
+            if (item) {
+                item.textContent = active ? "Desafixar coluna" : "Fixar coluna";
+            }
+        });
+    }
+
+    function exportCsv() {
+        var columns = GRID_COLUMNS.filter(function (column) {
+            return visibleColumns[column.id];
+        });
+        var lines = [columns.map(function (column) { return csvCell(column.label); }).join(";")];
         filteredRows.forEach(function (row) {
             lines.push(columns.map(function (column) {
-                var value = row[column.key];
-                if (column.key === "valor") {
-                    value = numberFormat.format(value || 0);
-                } else if (column.key === "confirmado") {
-                    value = value === "S" ? "Confirmada" : "Pendente";
-                } else if (column.key === "possuiAnexo") {
-                    value = value === "S" ? "Sim" : "Não";
-                }
-                return csvCell(value || "");
+                var value = column.kind === "estado" ? (row.confirmado === "S" ? "Confirmada" : "Pendente") : formatColumnValue(column, row);
+                return csvCell(value === "—" ? "" : value);
             }).join(";"));
         });
         var blob = new Blob(["\uFEFF" + lines.join("\r\n")], { type: "text/csv;charset=utf-8" });

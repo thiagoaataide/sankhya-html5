@@ -20,7 +20,9 @@
         serviceName: "ApuracaoDashboardSP",
         servicePrefix: "0bace5b4-6687-4507-9093-a80a82a03bcb@ApuracaoDashboardSP",
         servicePath: "/mge/service.sbr",
-        atualizarBotaoId: 77
+        atualizarBotaoId: 77,
+        tarefaBotaoId: 78,
+        confirmarBotaoId: 79
     };</script>
     <script src="${BASE_FOLDER}/javascript/script.js"></script>
 </snk:load>
@@ -79,16 +81,7 @@
             <div class="panel__tools">
                 <details class="column-picker" id="column-picker">
                     <summary>Colunas</summary>
-                    <div class="column-picker__menu" aria-label="Escolher colunas vis&iacute;veis">
-                        <label><input type="checkbox" data-column="0" checked> Sequ&ecirc;ncia</label>
-                        <label><input type="checkbox" data-column="1" checked> Conta</label>
-                        <label><input type="checkbox" data-column="2" checked> Contrato</label>
-                        <label><input type="checkbox" data-column="3" checked> Refer&ecirc;ncia</label>
-                        <label><input type="checkbox" data-column="4" checked> Vencimento</label>
-                        <label><input type="checkbox" data-column="5" checked> Valor</label>
-                        <label><input type="checkbox" data-column="6" checked> Estado</label>
-                        <label><input type="checkbox" data-column="7" checked> Anexo</label>
-                    </div>
+                    <div class="column-picker__menu" id="column-picker-menu" aria-label="Escolher colunas vis&iacute;veis"></div>
                 </details>
                 <span class="muted" id="grid-meta">Uma linha por apura&ccedil;&atilde;o</span>
             </div>
@@ -112,16 +105,7 @@
         <div class="table-wrap" tabindex="0">
             <table id="grid-apuracoes">
                 <thead>
-                <tr>
-                    <th scope="col" data-column="0"><button type="button" class="sort-trigger" data-sort="nuapuracao">Sequ&ecirc;ncia <span aria-hidden="true"></span></button></th>
-                    <th scope="col" data-column="1"><button type="button" class="sort-trigger" data-sort="codconta">Conta <span aria-hidden="true"></span></button></th>
-                    <th scope="col" data-column="2"><button type="button" class="sort-trigger" data-sort="numcontrato">Contrato <span aria-hidden="true"></span></button></th>
-                    <th scope="col" data-column="3"><button type="button" class="sort-trigger" data-sort="referencia">Refer&ecirc;ncia <span aria-hidden="true"></span></button></th>
-                    <th scope="col" data-column="4"><button type="button" class="sort-trigger" data-sort="dtvenc">Vencimento <span aria-hidden="true"></span></button></th>
-                    <th scope="col" class="num" data-column="5"><button type="button" class="sort-trigger" data-sort="valor">Valor <span aria-hidden="true"></span></button></th>
-                    <th scope="col" data-column="6">Estado</th>
-                    <th scope="col" data-column="7">Anexo</th>
-                </tr>
+                <tr id="grid-apuracoes-head"></tr>
                 </thead>
                 <tbody id="grid-apuracoes-body"></tbody>
             </table>
@@ -151,7 +135,13 @@
             </div>
             <span id="detail-state" class="badge badge--muted">Aguardando</span>
         </div>
-        <div id="detail-body" class="detail-grid"></div>
+        <div class="detail-actions" aria-label="A&ccedil;&otilde;es da apura&ccedil;&atilde;o">
+            <button type="button" class="btn btn--accent" id="btn-confirm" disabled>Confirmar</button>
+            <div class="detail-actions__secondary">
+                <button type="button" class="btn btn--quiet" id="btn-open-task" disabled>Abrir tarefa</button>
+                <button type="button" class="btn btn--quiet" id="btn-view-attachment" disabled>Ver anexo</button>
+            </div>
+        </div>
         <form id="detail-edit" class="detail-edit" novalidate>
             <fieldset>
                 <legend>Dados edit&aacute;veis</legend>
@@ -190,16 +180,22 @@
                 <button type="button" class="btn btn--quiet" id="btn-upload-attachment" disabled>Enviar anexo</button>
             </div>
         </fieldset>
-        <div class="detail-actions" aria-label="A&ccedil;&otilde;es da apura&ccedil;&atilde;o">
-            <button type="button" class="btn btn--quiet" id="btn-open-task" disabled>Abrir tarefa</button>
-            <button type="button" class="btn btn--quiet" id="btn-view-attachment" disabled>Ver anexo</button>
-            <button type="button" class="btn btn--accent" id="btn-confirm" disabled>Confirmar</button>
-        </div>
+        <fieldset class="access-panel">
+            <legend>Acesso &agrave; operadora</legend>
+            <div id="access-body" class="detail-grid access-grid"></div>
+        </fieldset>
         <div id="detail-message" class="inline-message" role="status" aria-live="polite" hidden></div>
     </section>
     </aside>
     </div>
 </main>
+<div id="error-dialog" class="notice-dialog notice-dialog--error" hidden>
+    <div class="notice-dialog__panel" role="alertdialog" aria-modal="true" aria-labelledby="error-dialog-title">
+        <h2 id="error-dialog-title">Erro</h2>
+        <p id="error-dialog-message"></p>
+        <button type="button" class="btn btn--accent" id="error-dialog-close">OK</button>
+    </div>
+</div>
 <div id="success-dialog" class="notice-dialog" hidden>
     <div class="notice-dialog__panel" role="alertdialog" aria-modal="true" aria-labelledby="success-dialog-title">
         <h2 id="success-dialog-title">Altera&ccedil;&otilde;es salvas</h2>
@@ -207,5 +203,9 @@
         <button type="button" class="btn btn--accent" id="success-dialog-close">Fechar</button>
     </div>
 </div>
+<a class="powered-by" href="https://getgruponewtry.netlify.app/" target="_blank" rel="noopener noreferrer">
+    <span>Powered by</span>
+    <img src="${BASE_FOLDER}/css/logo-get.png" alt="GET! Grupo" width="96" height="28">
+</a>
 </body>
 </html>

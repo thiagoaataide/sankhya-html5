@@ -32,8 +32,19 @@
               FROM TSIANX ANX
              WHERE ANX.NOMEINSTANCIA = 'bhApuracao'
                AND ANX.PKREGISTRO = TO_CHAR(APU.NUAPURACAO) || '_bhApuracao'
-        ) THEN 'S' ELSE 'N' END AS POSSUIANEXO
+        ) THEN 'S' ELSE 'N' END AS POSSUIANEXO,
+        LGO.LOGIN AS ACESSO_LOGIN,
+        LGO.SENHA AS ACESSO_SENHA,
+        LGO.CPF AS ACESSO_CPF,
+        LGO.CGC_CPF AS ACESSO_CNPJ,
+        LGO.EMAIL AS ACESSO_EMAIL,
+        LGO.LINHA_GESTORA AS ACESSO_LINHA
     FROM BH_FACAPU APU
+    LEFT JOIN BH_FACCON CTA ON CTA.CODCONTA = APU.CODCONTA
+    LEFT JOIN BH_FACLGO LGO
+      ON LGO.CODPARC = CTA.CODPARCGESTOR
+     AND LGO.CODCONTATO = CTA.CODCONTATOGESTOR
+     AND LGO.CODOPERADORA = CTA.OPERADORA
     WHERE APU.NUAPURACAO = <%= chaveSql %>
 </snk:query>
 <div id="detail-container" data-valid-key="<%= chaveValida ? "S" : "N" %>">
@@ -56,7 +67,13 @@
              data-idinstprn="<c:out value='${row.IDINSTPRN}'/>"
              data-nufila="<c:out value='${row.NUFILA}'/>"
              data-plano="<c:out value='${row.PLANO}'/>"
-             data-possui-anexo="<c:out value='${row.POSSUIANEXO}'/>">
+             data-possui-anexo="<c:out value='${row.POSSUIANEXO}'/>"
+             data-acesso-login="<c:out value='${row.ACESSO_LOGIN}'/>"
+             data-acesso-senha="<c:out value='${row.ACESSO_SENHA}'/>"
+             data-acesso-cpf="<c:out value='${row.ACESSO_CPF}'/>"
+             data-acesso-cnpj="<c:out value='${row.ACESSO_CNPJ}'/>"
+             data-acesso-email="<c:out value='${row.ACESSO_EMAIL}'/>"
+             data-acesso-linha="<c:out value='${row.ACESSO_LINHA}'/>">
         </div>
     </c:forEach>
 </div>
