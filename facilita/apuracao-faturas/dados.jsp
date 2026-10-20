@@ -100,6 +100,7 @@ SELECT TO_CHAR(APU.NUAPURACAO) AS NUAPURACAO,
        TO_CHAR(CFG.DATAFIN, 'YYYY-MM-DD') AS CFGDATAFIN,
        TO_CHAR(CFG.VLRREF, 'FM999999999999990D00', 'NLS_NUMERIC_CHARACTERS=''.,''') AS CFGVLRREF,
        TO_CHAR(CFG.VLRFIXO, 'FM999999999999990D00', 'NLS_NUMERIC_CHARACTERS=''.,''') AS CFGVLRFIXO,
+       LGO.LOGIN AS NOMECONTAOPERADORA,
        LGO.LOGIN AS ACESSO_LOGIN,
        LGO.CPF AS ACESSO_CPF,
        LGO.EMAIL AS ACESSO_EMAIL,
@@ -172,6 +173,7 @@ SELECT TO_CHAR(APU.NUAPURACAO) AS NUAPURACAO,
              data-tamanho-anexo="<c:out value='${row.TAMANHOANEXO}'/>"
              data-sequencia-faturamento="<c:out value='${row.SEQUENCIAFATURAMENTO}'/>"
              data-identificador="<c:out value='${row.IDENTIFICADOR}'/>"
+             data-nome-conta-operadora="<c:out value='${row.NOMECONTAOPERADORA}'/>"
              data-nome-operadora="<c:out value='${row.NOMEOPERADORA}'/>"
              data-nome-titular="<c:out value='${row.NOMETITULAR}'/>"
              data-nome-cliente="<c:out value='${row.NOMECLIENTE}'/>"

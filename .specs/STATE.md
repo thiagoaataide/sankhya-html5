@@ -22,10 +22,15 @@
   "Regra Personalizada".
 - Diferença visual em relação à tela legada é aceitável. A validação é manual
   no Sankhya Om.
+- Apuração de Faturas (A9, 2026-10-19): o gadget deve permitir gravar **valor
+  0,00** no botão 77. Zero não é “campo vazio”; confirmação (79) aceita
+  `VALOR = 0` no banco. Detalhes em `memory.md` § editar valor e vencimento.
 
 ## Handoff
 
 Dashboard `facilita/apuracao-faturas` com rotinas em GET_FACILITA.
 Botões 77, 78 e 79 ligados. Painel lateral reordenado em 2026-10-01.
 Fonte vigente: `.specs/features/facilita-apuracao-faturas/memory.md`.
-Próximo passo: publicar o gadget e o jar e homologar confirmar, nova auditoria e abrir tarefa no Om.
+Ajustes A1–A6: UAT validado no Om (2026-10-19). **A9–A13** implementados (UAT
+pendente, incl. modal **Dados anexo** / `anexos_payload.jsp`). **A7** iframe
+pendente.

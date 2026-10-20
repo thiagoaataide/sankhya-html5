@@ -6,6 +6,8 @@
     var selectedRow = null;
     var selectedDetail = null;
     var detailRequestSequence = 0;
+    var attachmentMetadataSequence = 0;
+    var attachmentMetadataLastFocus = null;
     var actionRequestSequence = 0;
     var sortState = { key: "numcontrato", direction: 1 };
     var pageState = { page: 1, pageSize: 15 };
@@ -13,12 +15,24 @@
     var gridRefreshSequence = 0;
     var CLIENT_FILTER_KEY = "facilita-apuracao-faturas:client-filters:v1";
     var SERVER_QUERY_KEY = "facilita-apuracao-faturas:server-query:v1";
+    var USER_PREFS_VERSION = 1;
+    var USER_PREFS_KEY_PREFIX = "facilita-apuracao-faturas:user-prefs:v1:";
+    var LEGACY_COLUMNS_KEY = "facilita-apuracao-faturas:columns:v2";
+    var LEGACY_PAGE_SIZE_KEY = "facilita-apuracao-faturas:page-size:v1";
+    var pendingClientPreferences = null;
+    var prefsRowExists = false;
+    var prefsSaveTimer = null;
+    var prefsServerSyncEnabled = false;
+    var prefsDirtyForServer = false;
+    var USER_PREFS_MAX_BYTES = 131072;
+    var PREFS_SAVE_DEBOUNCE_MS = 1500;
     var GRID_COLUMNS = [
         { id: "nuapuracao", label: "Sequência", kind: "text", visible: true },
         { id: "codconta", label: "Conta", kind: "text", visible: true },
         { id: "numcontrato", label: "Contrato", kind: "text", visible: true },
         { id: "nomeCliente", label: "Nome Cliente", kind: "text", visible: true },
         { id: "razaoCliente", label: "Razão Cliente", kind: "text", visible: true },
+        { id: "nomeContaOperadora", label: "Nome da conta na operadora", kind: "text", visible: true },
         { id: "referencia", label: "Referência", kind: "date", visible: true },
         { id: "dtvenc", label: "Vencimento", kind: "date", visible: true },
         { id: "valor", label: "Valor", kind: "money", visible: true },
@@ -79,18 +93,25 @@
     function init() {
         try {
             captureServerFilterQuery();
+            migrateLegacyUserPreferences();
+            seedServerFilterSessionFromPrefsIfEmpty();
+            loadUserPreferences();
             syncServerFilterControlsFromQuery(getServerFilterQuery());
             rows = readRows();
             filteredRows = rows.slice();
             buildGridChrome();
-            loadColumnPreferences();
-            loadPagePreferences();
+            applyColumnPreferencesToDom();
             bindEvents();
             restoreClientFilterState();
             syncSortWithSearchField();
             applySorting();
             applyFilters(true);
+            writeUserPreferencesToLocalStorage(buildUserPreferencesSnapshot());
             setLoading(false);
+            if (hasActiveServerFilterSession() || hasPersistedServerFilterPrefs()) {
+                refreshGridFromServer();
+            }
+            loadServerPreferencesAsync();
         } catch (error) {
             showError("A consulta não pôde ser preparada.");
             console.error("[facilita-apuracao] inicialização", error);
@@ -135,6 +156,7 @@
                 nomeTitular: data.nomeTitular || "",
                 nomeCliente: data.nomeCliente || "",
                 razaoCliente: data.razaoCliente || "",
+                nomeContaOperadora: data.nomeContaOperadora || "",
                 cgcTitular: data.cgcTitular || "",
                 apelidoVend: data.apelidoVend || "",
                 vlrest: parseNumber(data.vlrest),
@@ -142,7 +164,7 @@
                 cfgDatafin: data.cfgDatafin || "",
                 cfgVlrref: parseNumber(data.cfgVlrref),
                 cfgVlrfixo: parseNumber(data.cfgVlrfixo),
-                acessoLogin: data.acessoLogin || "",
+                acessoLogin: data.acessoLogin || data.nomeContaOperadora || "",
                 acessoCpf: data.acessoCpf || "",
                 acessoEmail: data.acessoEmail || "",
                 acessoCnpj: data.acessoCnpj || "",
@@ -165,6 +187,33 @@
             search.addEventListener("input", function () {
                 saveClientFilterState();
                 applyFilters();
+            });
+        }
+        window.addEventListener("pagehide", function () {
+            saveUserPreferences(undefined, { syncServer: true, immediate: true });
+        });
+        document.addEventListener("visibilitychange", function () {
+            if (document.visibilityState === "hidden") {
+                saveUserPreferences(undefined, { syncServer: true, immediate: true });
+            }
+        });
+        var columnPicker = document.getElementById("column-picker");
+        if (columnPicker) {
+            columnPicker.addEventListener("toggle", function () {
+                if (!columnPicker.open) {
+                    var columnFilter = document.getElementById("column-picker-filter");
+                    if (columnFilter) {
+                        columnFilter.value = "";
+                        filterColumnPickerList();
+                    }
+                    return;
+                }
+                window.setTimeout(function () {
+                    var columnFilter = document.getElementById("column-picker-filter");
+                    if (columnFilter) {
+                        columnFilter.focus();
+                    }
+                }, 0);
             });
         }
         if (field) {
@@ -238,6 +287,35 @@
         });
         document.addEventListener("facilita-apuracao:cleared", clearDetailSelection);
         document.addEventListener("click", closeColumnMenus);
+        bindAttachmentMetadataDialog();
+    }
+
+    function bindAttachmentMetadataDialog() {
+        var dialog = document.getElementById("attachment-metadata-dialog");
+        var close = document.getElementById("attachment-metadata-close");
+        var panel = dialog ? dialog.querySelector(".attachment-metadata__panel") : null;
+        if (close) {
+            close.addEventListener("click", closeAttachmentMetadataDialog);
+        }
+        if (dialog && panel) {
+            dialog.addEventListener("click", function (event) {
+                if (event.target === dialog) {
+                    closeAttachmentMetadataDialog();
+                }
+            });
+            panel.addEventListener("click", function (event) {
+                event.stopPropagation();
+            });
+        }
+        document.addEventListener("keydown", function (event) {
+            if (event.key !== "Escape") {
+                return;
+            }
+            if (dialog && !dialog.hidden) {
+                event.preventDefault();
+                closeAttachmentMetadataDialog();
+            }
+        });
     }
 
     function closeColumnMenus() {
@@ -254,7 +332,16 @@
         }
         head.textContent = "";
         menu.textContent = "";
+        menu.appendChild(buildColumnPickerSearch());
         menu.appendChild(buildSelectAllLabel());
+        var columnPickerList = document.createElement("div");
+        columnPickerList.className = "column-picker__list";
+        columnPickerList.id = "column-picker-list";
+        var columnPickerEmpty = document.createElement("p");
+        columnPickerEmpty.className = "column-picker__empty";
+        columnPickerEmpty.id = "column-picker-empty";
+        columnPickerEmpty.hidden = true;
+        columnPickerEmpty.textContent = "Nenhuma coluna corresponde à busca.";
         orderedColumns().forEach(function (column) {
             var th = document.createElement("th");
             var dragHandle = document.createElement("button");
@@ -262,6 +349,8 @@
             var marker = document.createElement("span");
             var pinButton = document.createElement("button");
             var label = document.createElement("label");
+            label.className = "column-picker__item";
+            label.setAttribute("data-column-label", column.label);
             var checkbox = document.createElement("input");
             th.scope = "col";
             th.setAttribute("data-column", column.id);
@@ -388,8 +477,11 @@
             });
             label.appendChild(checkbox);
             label.appendChild(document.createTextNode(" " + column.label));
-            menu.appendChild(label);
+            columnPickerList.appendChild(label);
         });
+        columnPickerList.appendChild(columnPickerEmpty);
+        menu.appendChild(columnPickerList);
+        filterColumnPickerList();
         buildColumnFilterRow();
         syncSelectAll();
     }
@@ -529,6 +621,56 @@
         });
     }
 
+    function buildColumnPickerSearch() {
+        var wrap = document.createElement("div");
+        var input = document.createElement("input");
+        wrap.className = "column-picker__search";
+        input.type = "search";
+        input.id = "column-picker-filter";
+        input.className = "column-picker__search-input";
+        input.setAttribute("autocomplete", "off");
+        input.setAttribute("enterkeyhint", "search");
+        input.setAttribute("aria-controls", "column-picker-list");
+        input.setAttribute("aria-label", "Buscar coluna por nome");
+        input.placeholder = "Buscar coluna…";
+        input.addEventListener("input", filterColumnPickerList);
+        input.addEventListener("click", function (event) {
+            event.stopPropagation();
+        });
+        input.addEventListener("keydown", function (event) {
+            event.stopPropagation();
+            if (event.key === "Escape") {
+                event.preventDefault();
+                input.value = "";
+                filterColumnPickerList();
+            }
+        });
+        wrap.appendChild(input);
+        return wrap;
+    }
+
+    function filterColumnPickerList() {
+        var input = document.getElementById("column-picker-filter");
+        var list = document.getElementById("column-picker-list");
+        var empty = document.getElementById("column-picker-empty");
+        if (!input || !list) {
+            return;
+        }
+        var query = input.value.trim().toLowerCase();
+        var visibleCount = 0;
+        Array.prototype.forEach.call(list.querySelectorAll(".column-picker__item"), function (label) {
+            var name = (label.getAttribute("data-column-label") || label.textContent || "").trim().toLowerCase();
+            var match = !query || matchesSearchToken(name, query);
+            label.hidden = !match;
+            if (match) {
+                visibleCount += 1;
+            }
+        });
+        if (empty) {
+            empty.hidden = visibleCount > 0 || !query;
+        }
+    }
+
     function buildSelectAllLabel() {
         var label = document.createElement("label");
         var checkbox = document.createElement("input");
@@ -601,6 +743,527 @@
         render();
     }
 
+    function getPreferencesStorage() {
+        var candidates = [window.localStorage];
+        try {
+            if (window.top && window.top.localStorage && candidates.indexOf(window.top.localStorage) === -1) {
+                candidates.push(window.top.localStorage);
+            }
+        } catch (error) {
+            /* cross-origin */
+        }
+        for (var i = 0; i < candidates.length; i++) {
+            try {
+                var storage = candidates[i];
+                var probe = "__facilita_apuracao_storage_probe__";
+                storage.setItem(probe, "1");
+                storage.removeItem(probe);
+                return storage;
+            } catch (error) {
+                /* blocked */
+            }
+        }
+        return null;
+    }
+
+    function getUsuarioKey() {
+        var user = window.FACILITA_APURACAO_USER;
+        if (!user || user.codusu == null) {
+            return null;
+        }
+        var codusu = String(user.codusu).trim();
+        if (codusu === "") {
+            return null;
+        }
+        return codusu;
+    }
+
+    function userPrefsStorageKey() {
+        var codusu = getUsuarioKey();
+        return USER_PREFS_KEY_PREFIX + (codusu == null ? "anon" : codusu);
+    }
+
+    function syncUsuarioFromServerPayload(payload) {
+        if (!payload || payload.codusu == null || String(payload.codusu).trim() === "") {
+            return;
+        }
+        window.FACILITA_APURACAO_USER = window.FACILITA_APURACAO_USER || {};
+        window.FACILITA_APURACAO_USER.codusu = String(payload.codusu).trim();
+    }
+
+    function serverFiltersEqual(left, right) {
+        if (!left || !right) {
+            return false;
+        }
+        var a = resolveServerFilterValues(left);
+        var b = resolveServerFilterValues(right);
+        return a.P_REFERENCIA === b.P_REFERENCIA
+            && a.P_SOMENTE_PENDENTES === b.P_SOMENTE_PENDENTES
+            && a.P_POSSUI_ANEXO === b.P_POSSUI_ANEXO;
+    }
+
+    function readUserPreferencesFromStorage() {
+        var storage = getPreferencesStorage();
+        if (!storage) {
+            return null;
+        }
+        try {
+            var raw = storage.getItem(userPrefsStorageKey());
+            if (!raw) {
+                return null;
+            }
+            var prefs = JSON.parse(raw);
+            if (!prefs || prefs.version !== USER_PREFS_VERSION) {
+                return null;
+            }
+            return prefs;
+        } catch (error) {
+            console.warn("[facilita-apuracao] preferências do usuário indisponíveis", error);
+            return null;
+        }
+    }
+
+    function buildUserPreferencesSnapshot(serverOverride) {
+        var search = document.getElementById("filter-text");
+        var field = document.getElementById("filter-field");
+        syncColumnFiltersFromDom();
+        var server = serverOverride || readAuthoritativeServerFilters();
+        return {
+            version: USER_PREFS_VERSION,
+            savedAt: new Date().toISOString(),
+            server: {
+                P_REFERENCIA: server.P_REFERENCIA,
+                P_SOMENTE_PENDENTES: server.P_SOMENTE_PENDENTES,
+                P_POSSUI_ANEXO: server.P_POSSUI_ANEXO
+            },
+            client: {
+                search: search ? search.value : "",
+                field: field ? field.value : "T",
+                page: pageState.page,
+                columnFilters: columnFilters
+            },
+            grid: {
+                pageSize: pageState.pageSize,
+                columns: visibleColumns,
+                pinned: pinnedColumns.slice(),
+                order: normalizeColumnOrder(columnOrder),
+                sortKey: sortState.key,
+                sortDirection: sortState.direction,
+                manualColumnSort: manualColumnSort
+            }
+        };
+    }
+
+    function getPrefsCrudConfig() {
+        return window.FACILITA_APURACAO_PREFS || {
+            rootEntity: "AD_APURACAOCONF",
+            confField: "CONF"
+        };
+    }
+
+    function writeUserPreferencesToLocalStorage(snapshot) {
+        var storage = getPreferencesStorage();
+        if (!storage || !snapshot) {
+            return;
+        }
+        try {
+            storage.setItem(userPrefsStorageKey(), JSON.stringify(snapshot));
+        } catch (error) {
+            console.warn("[facilita-apuracao] preferências locais não persistidas", error);
+        }
+    }
+
+    function buildServerFilterSearch(resolved) {
+        var values = resolveServerFilterValues(resolved || {});
+        return "?"
+            + "P_REFERENCIA=" + encodeURIComponent(values.P_REFERENCIA)
+            + "&P_SOMENTE_PENDENTES=" + encodeURIComponent(values.P_SOMENTE_PENDENTES)
+            + "&P_POSSUI_ANEXO=" + encodeURIComponent(values.P_POSSUI_ANEXO);
+    }
+
+    function setServerFilterQueryInSession(resolved) {
+        var search = buildServerFilterSearch(resolved);
+        try {
+            window.sessionStorage.setItem(SERVER_QUERY_KEY, search);
+        } catch (error) {
+            console.warn("[facilita-apuracao] não foi possível guardar parâmetros do gadget", error);
+        }
+        return search;
+    }
+
+    function hasPersistedServerFilterPrefs() {
+        var prefs = readUserPreferencesFromStorage();
+        return !!(prefs && prefs.server);
+    }
+
+    function hasActiveServerFilterSession() {
+        try {
+            var stored = window.sessionStorage.getItem(SERVER_QUERY_KEY);
+            if (stored) {
+                var params = parseServerFilterParams(stored);
+                if (params.P_REFERENCIA || params.P_SOMENTE_PENDENTES || params.P_POSSUI_ANEXO) {
+                    return true;
+                }
+            }
+        } catch (error) {
+            /* ignore */
+        }
+        var locationParams = parseServerFilterParams(window.location.search);
+        return !!(locationParams.P_REFERENCIA || locationParams.P_SOMENTE_PENDENTES || locationParams.P_POSSUI_ANEXO);
+    }
+
+    function serverFiltersFromSessionOrPrefs() {
+        var fromQuery = resolveServerFilterValues(parseServerFilterParams(getServerFilterQuery()));
+        if (hasActiveServerFilterSession()) {
+            return fromQuery;
+        }
+        var prefs = readUserPreferencesFromStorage();
+        if (prefs && prefs.server) {
+            return resolveServerFilterValues(prefs.server);
+        }
+        return fromQuery;
+    }
+
+    function readAuthoritativeServerFilters() {
+        if (document.getElementById("server-filter-reference")) {
+            return resolveServerFilterValues(readServerFilterControls());
+        }
+        return serverFiltersFromSessionOrPrefs();
+    }
+
+    function seedServerFilterSessionFromPrefsIfEmpty() {
+        if (hasActiveServerFilterSession()) {
+            return;
+        }
+        var prefs = readUserPreferencesFromStorage();
+        if (prefs && prefs.server) {
+            setServerFilterQueryInSession(prefs.server);
+        }
+    }
+
+    function tryUpdateLocationServerParams(resolved) {
+        try {
+            var values = resolveServerFilterValues(resolved || {});
+            var targetUrl = new URL(window.location.href);
+            targetUrl.searchParams.set("P_REFERENCIA", values.P_REFERENCIA);
+            targetUrl.searchParams.set("P_SOMENTE_PENDENTES", values.P_SOMENTE_PENDENTES);
+            targetUrl.searchParams.set("P_POSSUI_ANEXO", values.P_POSSUI_ANEXO);
+            window.history.replaceState(null, "", targetUrl.toString());
+        } catch (error) {
+            /* ignore */
+        }
+    }
+
+    function applyRemotePreferencesFromServer(remotePrefs) {
+        if (!remotePrefs || typeof remotePrefs !== "object") {
+            return;
+        }
+        var uiServer = readAuthoritativeServerFilters();
+        var remoteServer = remotePrefs.server ? resolveServerFilterValues(remotePrefs.server) : null;
+
+        applyUserPreferencesObject({
+            grid: remotePrefs.grid,
+            client: remotePrefs.client
+        });
+
+        var snapshot = buildUserPreferencesSnapshot();
+        writeUserPreferencesToLocalStorage(snapshot);
+        applyColumnPreferencesToDom();
+        restoreClientFilterState();
+        applyFilters(true);
+        render();
+
+        if (!remoteServer || !serverFiltersEqual(remoteServer, uiServer)) {
+            prefsDirtyForServer = true;
+            scheduleServerPreferencesSave(snapshot);
+        }
+    }
+
+    function parseServerPrefsPayload(payload) {
+        if (!payload || !payload.exists) {
+            return { exists: false, prefs: null };
+        }
+        if (!payload.conf || !String(payload.conf).trim()) {
+            return { exists: true, prefs: null };
+        }
+        try {
+            var prefs = JSON.parse(payload.conf);
+            if (prefs && prefs.version === USER_PREFS_VERSION) {
+                return { exists: true, prefs: prefs };
+            }
+        } catch (error) {
+            console.warn("[facilita-apuracao] CONF do servidor inválido", error);
+        }
+        return { exists: true, prefs: null };
+    }
+
+    function loadServerPreferencesAsync() {
+        var base = window.FACILITA_APURACAO_BASE || "";
+        var url = base + "/prefs_payload.jsp";
+        fetch(url, { credentials: "same-origin", headers: { Accept: "application/json" } })
+            .then(function (response) {
+                if (!response.ok) {
+                    throw new Error("HTTP " + response.status);
+                }
+                return response.json();
+            })
+            .then(function (payload) {
+                syncUsuarioFromServerPayload(payload);
+                prefsServerSyncEnabled = true;
+                var parsed = parseServerPrefsPayload(payload);
+                prefsRowExists = parsed.exists;
+                if (!parsed.prefs) {
+                    if (!prefsRowExists && readUserPreferencesFromStorage()) {
+                        prefsDirtyForServer = true;
+                        flushServerPreferences({
+                            snapshot: readUserPreferencesFromStorage(),
+                            force: true
+                        });
+                    }
+                    return;
+                }
+                applyRemotePreferencesFromServer(parsed.prefs);
+            })
+            .catch(function (error) {
+                prefsServerSyncEnabled = true;
+                console.warn("[facilita-apuracao] preferências do servidor indisponíveis", error);
+            });
+    }
+
+    function applyUserPreferencesObject(prefs) {
+        if (!prefs || typeof prefs !== "object") {
+            return;
+        }
+        if (prefs.grid) {
+            applyGridPreferences(prefs.grid);
+            var pageSize = document.getElementById("page-size");
+            if (pageSize) {
+                pageSize.value = String(pageState.pageSize);
+            }
+        }
+        if (prefs.client && typeof prefs.client === "object") {
+            pendingClientPreferences = prefs.client;
+            if (prefs.client.page) {
+                pageState.page = Math.max(1, parseInt(prefs.client.page, 10) || 1);
+            }
+        }
+    }
+
+    function crudSaveRecord(localFields, rootEntity, primaryKey) {
+        var fieldNames = Object.keys(localFields || {});
+        var localFieldsPayload = {};
+        fieldNames.forEach(function (key) {
+            var value = localFields[key];
+            if (value !== null && value !== undefined && value !== "") {
+                localFieldsPayload[key.toUpperCase()] = { $: String(value) };
+            }
+        });
+        var dataRow = { localFields: localFieldsPayload };
+        if (primaryKey) {
+            dataRow.key = {};
+            Object.keys(primaryKey).forEach(function (key) {
+                dataRow.key[key.toUpperCase()] = { $: String(primaryKey[key]) };
+            });
+        }
+        var body = {
+            serviceName: "CRUDServiceProvider.saveRecord",
+            requestBody: {
+                dataSet: {
+                    rootEntity: rootEntity,
+                    includePresentationFields: "N",
+                    dataRow: dataRow,
+                    entity: {
+                        fieldset: {
+                            list: fieldNames.map(function (key) {
+                                return key.toUpperCase();
+                            }).join(",")
+                        }
+                    }
+                }
+            }
+        };
+        var url = window.location.origin + "/mge/service.sbr?serviceName=CRUDServiceProvider.saveRecord&outputType=json";
+        return fetch(url, {
+            method: "POST",
+            credentials: "same-origin",
+            headers: { "Content-Type": "application/json;charset=UTF-8" },
+            body: JSON.stringify(body),
+            keepalive: true
+        }).then(function (response) {
+            return response.json();
+        }).then(function (data) {
+            if (String(data.status) !== "1") {
+                throw new Error(data.statusMessage || (data.responseBody && data.responseBody.message) || "Falha ao gravar preferências");
+            }
+            return data;
+        });
+    }
+
+    function scheduleServerPreferencesSave(snapshot) {
+        if (prefsSaveTimer) {
+            window.clearTimeout(prefsSaveTimer);
+        }
+        var snap = snapshot;
+        prefsSaveTimer = window.setTimeout(function () {
+            prefsSaveTimer = null;
+            flushServerPreferences({ snapshot: snap });
+        }, PREFS_SAVE_DEBOUNCE_MS);
+    }
+
+    function flushServerPreferences(options) {
+        var cfg = getPrefsCrudConfig();
+        if (!cfg.rootEntity || !prefsServerSyncEnabled) {
+            return Promise.resolve();
+        }
+        if (options && options.force !== true && !prefsDirtyForServer) {
+            return Promise.resolve();
+        }
+        var codusu = getUsuarioKey();
+        if (codusu == null) {
+            return Promise.resolve();
+        }
+        if (options && options.immediate && prefsSaveTimer) {
+            window.clearTimeout(prefsSaveTimer);
+            prefsSaveTimer = null;
+        }
+        var snapshot = options && options.snapshot ? options.snapshot : buildUserPreferencesSnapshot();
+        if (!snapshot.savedAt) {
+            snapshot.savedAt = new Date().toISOString();
+        }
+        var confField = cfg.confField || "CONF";
+        var confText = JSON.stringify(snapshot);
+        if (confText.length > USER_PREFS_MAX_BYTES) {
+            console.warn("[facilita-apuracao] preferências excedem o limite para AD_APURACAOCONF");
+            return Promise.resolve();
+        }
+        var fields = {};
+        fields[confField] = confText;
+        var pk = prefsRowExists ? { CODUSU: codusu } : null;
+        return crudSaveRecord(fields, cfg.rootEntity, pk).then(function () {
+            prefsRowExists = true;
+            prefsDirtyForServer = false;
+            writeUserPreferencesToLocalStorage(snapshot);
+        }).catch(function (error) {
+            console.warn("[facilita-apuracao] falha ao gravar AD_APURACAOCONF", error);
+        });
+    }
+
+    function saveUserPreferences(serverOverride, options) {
+        var opts = options || {};
+        var snapshot = buildUserPreferencesSnapshot(serverOverride);
+        writeUserPreferencesToLocalStorage(snapshot);
+        if (opts.syncServer) {
+            prefsDirtyForServer = true;
+            if (opts.immediate) {
+                flushServerPreferences({ snapshot: snapshot, immediate: true, force: true });
+                return;
+            }
+            scheduleServerPreferencesSave(snapshot);
+            return;
+        }
+        if (prefsServerSyncEnabled) {
+            prefsDirtyForServer = true;
+            scheduleServerPreferencesSave(snapshot);
+        }
+    }
+
+    function persistCurrentServerFiltersToUserPreferences() {
+        writeUserPreferencesToLocalStorage(buildUserPreferencesSnapshot());
+    }
+
+    function migrateLegacyUserPreferences() {
+        var storage = getPreferencesStorage();
+        if (!storage || storage.getItem(userPrefsStorageKey())) {
+            return;
+        }
+        var snapshot = {
+            version: USER_PREFS_VERSION,
+            server: null,
+            client: null,
+            grid: null
+        };
+        try {
+            var legacyColumns = storage.getItem(LEGACY_COLUMNS_KEY);
+            if (legacyColumns) {
+                var columnsPrefs = JSON.parse(legacyColumns);
+                snapshot.grid = {
+                    pageSize: pageState.pageSize,
+                    columns: columnsPrefs.columns || {},
+                    pinned: columnsPrefs.pinned || [],
+                    order: columnsPrefs.order || [],
+                    sortKey: sortState.key,
+                    sortDirection: sortState.direction,
+                    manualColumnSort: manualColumnSort
+                };
+            }
+            var legacyPageSize = storage.getItem(LEGACY_PAGE_SIZE_KEY);
+            if (legacyPageSize) {
+                if (!snapshot.grid) {
+                    snapshot.grid = {
+                        pageSize: parsePageSize(legacyPageSize),
+                        columns: visibleColumns,
+                        pinned: pinnedColumns.slice(),
+                        order: normalizeColumnOrder(columnOrder),
+                        sortKey: sortState.key,
+                        sortDirection: sortState.direction,
+                        manualColumnSort: manualColumnSort
+                    };
+                } else {
+                    snapshot.grid.pageSize = parsePageSize(legacyPageSize);
+                }
+            }
+            if (snapshot.grid) {
+                storage.setItem(userPrefsStorageKey(), JSON.stringify(snapshot));
+            }
+        } catch (error) {
+            console.warn("[facilita-apuracao] migração de preferências legadas", error);
+        }
+    }
+
+    function applyGridPreferences(grid) {
+        if (!grid || typeof grid !== "object") {
+            return;
+        }
+        if (grid.columns && typeof grid.columns === "object") {
+            Object.keys(visibleColumns).forEach(function (id) {
+                if (typeof grid.columns[id] === "boolean") {
+                    visibleColumns[id] = grid.columns[id];
+                }
+            });
+            if (!Object.keys(visibleColumns).some(function (id) { return visibleColumns[id]; })) {
+                visibleColumns.nuapuracao = true;
+            }
+        }
+        var storedPins = grid.pinned;
+        if (typeof storedPins === "string") {
+            storedPins = storedPins ? [storedPins] : [];
+        }
+        if (storedPins && storedPins.length) {
+            pinnedColumns = storedPins.filter(function (id) {
+                return visibleColumns[id] && columnById(id);
+            });
+        }
+        if (grid.order && grid.order.length) {
+            columnOrder = normalizeColumnOrder(grid.order);
+        }
+        if (grid.pageSize) {
+            pageState.pageSize = parsePageSize(String(grid.pageSize));
+        }
+        if (grid.sortKey) {
+            sortState.key = grid.sortKey;
+        }
+        if (grid.sortDirection === 1 || grid.sortDirection === -1) {
+            sortState.direction = grid.sortDirection;
+        }
+        if (typeof grid.manualColumnSort === "boolean") {
+            manualColumnSort = grid.manualColumnSort;
+        }
+    }
+
+    function loadUserPreferences() {
+        applyUserPreferencesObject(readUserPreferencesFromStorage());
+    }
+
     function captureServerFilterQuery() {
         var search = window.location.search;
         if (search && search.length > 1) {
@@ -613,11 +1276,11 @@
     }
 
     function getServerFilterQuery() {
-        if (window.location.search && window.location.search.length > 1) {
+        var fromLocation = parseServerFilterParams(window.location.search);
+        if (fromLocation.P_REFERENCIA || fromLocation.P_SOMENTE_PENDENTES || fromLocation.P_POSSUI_ANEXO) {
             captureServerFilterQuery();
             return window.location.search;
         }
-        captureServerFilterQuery();
         try {
             var stored = window.sessionStorage.getItem(SERVER_QUERY_KEY);
             if (stored) {
@@ -625,6 +1288,10 @@
             }
         } catch (error) {
             console.warn("[facilita-apuracao] parâmetros do gadget indisponíveis", error);
+        }
+        if (window.location.search && window.location.search.length > 1) {
+            captureServerFilterQuery();
+            return window.location.search;
         }
         return "";
     }
@@ -739,32 +1406,16 @@
     }
 
     function reloadWithServerFilters(values) {
+        var resolved = resolveServerFilterValues(values || {});
+        var snapshot = buildUserPreferencesSnapshot(resolved);
+        writeUserPreferencesToLocalStorage(snapshot);
+        prefsDirtyForServer = true;
+        scheduleServerPreferencesSave(snapshot);
+        setServerFilterQueryInSession(resolved);
+        tryUpdateLocationServerParams(resolved);
+        syncServerFilterControlsFromQuery(getServerFilterQuery());
         saveClientFilterState();
-        var targetUrl;
-        try {
-            targetUrl = new URL(window.location.href);
-        } catch (error) {
-            targetUrl = null;
-        }
-        if (targetUrl) {
-            var merged = mergeServerFilterParams(targetUrl.search, values);
-            targetUrl.searchParams.set("P_REFERENCIA", merged.P_REFERENCIA);
-            targetUrl.searchParams.set("P_SOMENTE_PENDENTES", merged.P_SOMENTE_PENDENTES);
-            targetUrl.searchParams.set("P_POSSUI_ANEXO", merged.P_POSSUI_ANEXO);
-            try {
-                window.sessionStorage.setItem(SERVER_QUERY_KEY, targetUrl.search);
-            } catch (storageError) {
-                console.warn("[facilita-apuracao] não foi possível guardar parâmetros do gadget", storageError);
-            }
-            window.location.assign(targetUrl.toString());
-            return;
-        }
-        var fallback = mergeServerFilterParams(window.location.search, values);
-        var query = "?"
-            + "P_REFERENCIA=" + encodeURIComponent(fallback.P_REFERENCIA)
-            + "&P_SOMENTE_PENDENTES=" + encodeURIComponent(fallback.P_SOMENTE_PENDENTES)
-            + "&P_POSSUI_ANEXO=" + encodeURIComponent(fallback.P_POSSUI_ANEXO);
-        window.location.assign(window.location.pathname + query + (window.location.hash || ""));
+        refreshGridFromServer();
     }
 
     function saveClientFilterState() {
@@ -782,15 +1433,21 @@
         } catch (error) {
             console.warn("[facilita-apuracao] não foi possível guardar filtros locais", error);
         }
+        saveUserPreferences();
     }
 
     function restoreClientFilterState() {
         try {
             var raw = window.sessionStorage.getItem(CLIENT_FILTER_KEY);
-            if (!raw) {
+            var state = null;
+            if (raw) {
+                state = JSON.parse(raw);
+            } else if (pendingClientPreferences) {
+                state = pendingClientPreferences;
+            }
+            if (!state) {
                 return;
             }
-            var state = JSON.parse(raw);
             var search = document.getElementById("filter-text");
             var field = document.getElementById("filter-field");
             var pageSize = document.getElementById("page-size");
@@ -954,6 +1611,7 @@
             RAZAOCLIENTE: [row.razaoCliente],
             NOMETITULAR: [row.nomeTitular],
             NOMEOPERADORA: [row.nomeOperadora],
+            NOMECONTAOPERADORA: [row.nomeContaOperadora],
             APELIDOVEND: [row.apelidoVend],
             CLIENTE: [row.cliente],
             OPERADORA: [row.operadora],
@@ -1113,6 +1771,7 @@
 
     function clearDetailSelection() {
         detailRequestSequence += 1;
+        closeAttachmentMetadataDialog();
         selectedDetail = null;
         var panel = document.getElementById("detail-panel");
         var empty = document.getElementById("detail-empty");
@@ -1143,7 +1802,8 @@
             referencia: data.referencia || "",
             referenciaadiada: data.referenciaadiada || "",
             dtvenc: data.dtvenc || "",
-            valor: parseNumber(data.valor),
+            valorRaw: data.valor != null ? String(data.valor).trim() : "",
+            valor: data.valor != null && String(data.valor).trim() !== "" ? parseNumber(data.valor) : null,
             valorref: parseNumber(data.valorref),
             confirmado: flag(data.confirmado),
             auditoriafinalizada: flag(data.auditoriafinalizada),
@@ -1166,7 +1826,7 @@
     function renderDetail(detail) {
         renderAccess(detail);
         setInputValue("edit-dtvenc", detail.dtvenc);
-        setInputValue("edit-valor", detail.valor ? String(detail.valor) : "");
+        setInputValue("edit-valor", formatValorForInput(detail));
         setText("detail-state", detail.confirmado === "S" ? "Confirmada" : "Pendente");
         setDetailActions(detail);
     }
@@ -1249,6 +1909,13 @@
             attachment.disabled = !detail || detail.possuiAnexo !== "S";
             attachment.onclick = function () {
                 viewSelectedAttachments();
+            };
+        }
+        var metadata = document.getElementById("btn-attachment-metadata");
+        if (metadata) {
+            metadata.disabled = !detail || detail.possuiAnexo !== "S";
+            metadata.onclick = function () {
+                openAttachmentMetadataDialog();
             };
         }
         if (confirm) {
@@ -1486,14 +2153,23 @@
             return;
         }
         var date = getInputValue("edit-dtvenc");
-        var valueText = getInputValue("edit-valor").replace(",", ".");
-        var value = Number(valueText);
+        var valorParsed = parseEditValorInput(getInputValue("edit-valor"));
         if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
             setDetailMessage("Informe um vencimento válido.");
             return;
         }
-        if (!valueText || !isFinite(value) || value < 0) {
+        if (!valorParsed.empty && valorParsed.invalid) {
             setDetailMessage("Informe um valor maior ou igual a zero.");
+            return;
+        }
+        if (!valorParsed.empty && valorParsed.value < 0) {
+            setDetailMessage("Informe um valor maior ou igual a zero.");
+            return;
+        }
+        var valorInput = getInputValue("edit-valor");
+        var valorChanged = editValorChanged(valorInput, selectedDetail);
+        if (!valorChanged && !date) {
+            setDetailMessage("Informe o valor ou o vencimento.");
             return;
         }
         var idBotao = Number(facadeConfig.atualizarBotaoId);
@@ -1502,12 +2178,17 @@
             return;
         }
         var requestId = ++actionRequestSequence;
+        var payload = {
+            NUAPURACAO: String(selectedDetail.nuapuracao)
+        };
+        if (valorChanged) {
+            payload.VALOR = valorParsed.empty ? "" : valorParsed.text;
+        }
+        if (date) {
+            payload.DTVENC = date;
+        }
         setActionBusy(true, "Salvando alterações…");
-        acionarBotaoJava({
-            NUAPURACAO: String(selectedDetail.nuapuracao),
-            VALOR: valueText,
-            DTVENC: date
-        }, idBotao).then(function (mensagem) {
+        acionarBotaoJava(payload, idBotao).then(function (mensagem) {
             if (requestId !== actionRequestSequence) {
                 return;
             }
@@ -1626,6 +2307,172 @@
         window.open(url, "_blank");
     }
 
+    function openAttachmentMetadataDialog() {
+        if (!selectedDetail || selectedDetail.possuiAnexo !== "S" || !selectedDetail.nuapuracao) {
+            return;
+        }
+        var dialog = document.getElementById("attachment-metadata-dialog");
+        var body = document.getElementById("attachment-metadata-body");
+        var subtitle = document.getElementById("attachment-metadata-subtitle");
+        var close = document.getElementById("attachment-metadata-close");
+        if (!dialog || !body) {
+            return;
+        }
+        var sequence = ++attachmentMetadataSequence;
+        attachmentMetadataLastFocus = document.activeElement;
+        if (subtitle) {
+            subtitle.textContent = "Apuração " + selectedDetail.nuapuracao;
+        }
+        body.innerHTML = "<p class=\"attachment-metadata__status\" id=\"attachment-metadata-status\">Carregando…</p>";
+        dialog.hidden = false;
+        if (close) {
+            close.focus();
+        }
+        var base = window.FACILITA_APURACAO_BASE || "";
+        var url = base + "/anexos_payload.jsp?nuapuracao=" + encodeURIComponent(selectedDetail.nuapuracao);
+        fetch(url, { credentials: "same-origin", headers: { Accept: "text/html" } })
+            .then(function (response) {
+                if (!response.ok) {
+                    throw new Error("HTTP " + response.status);
+                }
+                return response.text();
+            })
+            .then(function (html) {
+                if (sequence !== attachmentMetadataSequence) {
+                    return;
+                }
+                if (html && /^\s*</.test(html) && html.toLowerCase().indexOf("<html") >= 0 && html.indexOf("anexos-container") < 0) {
+                    throw createFacadeError(
+                        "Resposta não é JSON (sessão expirada ou serviço indisponível).",
+                        "INTEGRATION"
+                    );
+                }
+                var documentResponse = new DOMParser().parseFromString(html, "text/html");
+                var container = documentResponse.getElementById("anexos-container");
+                if (!container || container.getAttribute("data-valid-key") === "N") {
+                    throw new Error("Consulta de anexos inválida.");
+                }
+                var anexos = readAnexoRows(container);
+                renderAttachmentMetadataTable(anexos, body);
+                if (close) {
+                    close.focus();
+                }
+            })
+            .catch(function (error) {
+                if (sequence !== attachmentMetadataSequence) {
+                    return;
+                }
+                body.innerHTML = "";
+                var message = document.createElement("p");
+                message.className = "attachment-metadata__status";
+                message.textContent = (error && error.message) || "Não foi possível carregar os dados do anexo.";
+                body.appendChild(message);
+                var code = document.createElement("p");
+                code.className = "attachment-metadata__status";
+                code.textContent = "Código: FA-ANX" + Date.now();
+                body.appendChild(code);
+                console.error("[facilita-apuracao] metadados anexo", error);
+                if (close) {
+                    close.focus();
+                }
+            });
+    }
+
+    function closeAttachmentMetadataDialog() {
+        attachmentMetadataSequence += 1;
+        var dialog = document.getElementById("attachment-metadata-dialog");
+        if (dialog) {
+            dialog.hidden = true;
+        }
+        if (attachmentMetadataLastFocus && typeof attachmentMetadataLastFocus.focus === "function") {
+            attachmentMetadataLastFocus.focus();
+        }
+        attachmentMetadataLastFocus = null;
+    }
+
+    function readAnexoRows(container) {
+        return Array.prototype.map.call(container.querySelectorAll(".anexo-row"), function (element) {
+            return {
+                nuattach: element.getAttribute("data-nuattach") || "",
+                tipo: element.getAttribute("data-tipo") || "",
+                descricao: element.getAttribute("data-descricao") || "",
+                nomeArquivo: element.getAttribute("data-nome-arquivo") || "",
+                codusuInc: element.getAttribute("data-codusu-inc") || "",
+                nomeUsuInc: element.getAttribute("data-nome-usu-inc") || "",
+                dhcad: element.getAttribute("data-dhcad") || "",
+                dhalter: element.getAttribute("data-dhalter") || "",
+                codusuAlt: element.getAttribute("data-codusu-alt") || "",
+                nomeUsuAlt: element.getAttribute("data-nome-usu-alt") || "",
+                tipoApres: element.getAttribute("data-tipo-apres") || "",
+                tipoAcesso: element.getAttribute("data-tipo-acesso") || "",
+                tipoApresOpcao: element.getAttribute("data-tipo-apres-opcao") || "",
+                tipoAcessoOpcao: element.getAttribute("data-tipo-acesso-opcao") || ""
+            };
+        });
+    }
+
+    function formatAnexoUsuario(codigo, nome) {
+        var cod = String(codigo || "").trim();
+        var nom = String(nome || "").trim();
+        if (cod && nom) {
+            return cod + " — " + nom;
+        }
+        return nom || cod || "—";
+    }
+
+    function renderAttachmentMetadataTable(anexos, body) {
+        body.textContent = "";
+        if (!anexos.length) {
+            var empty = document.createElement("p");
+            empty.className = "attachment-metadata__status";
+            empty.textContent = "Nenhum anexo encontrado para esta apuração.";
+            body.appendChild(empty);
+            return;
+        }
+        var table = document.createElement("table");
+        table.className = "attachment-metadata-table";
+        var caption = document.createElement("caption");
+        caption.className = "visually-hidden";
+        caption.textContent = "Metadados dos anexos da apuração";
+        table.appendChild(caption);
+        var thead = document.createElement("thead");
+        var headRow = document.createElement("tr");
+        ["Tipo", "Descrição", "Arquivo", "Inclusão", "Criado em", "Alterado em", "Alteração", "Visível", "Acesso"].forEach(function (label) {
+            var th = document.createElement("th");
+            th.scope = "col";
+            th.textContent = label;
+            headRow.appendChild(th);
+        });
+        thead.appendChild(headRow);
+        table.appendChild(thead);
+        var tbody = document.createElement("tbody");
+        anexos.forEach(function (anexo) {
+            var tr = document.createElement("tr");
+            [
+                anexo.tipo || "—",
+                anexo.descricao || "—",
+                anexo.nomeArquivo || "—",
+                formatAnexoUsuario(anexo.codusuInc, anexo.nomeUsuInc),
+                anexo.dhcad || "—",
+                anexo.dhalter || "—",
+                formatAnexoUsuario(anexo.codusuAlt, anexo.nomeUsuAlt),
+                anexo.tipoApresOpcao || anexo.tipoApres || "—",
+                anexo.tipoAcessoOpcao || anexo.tipoAcesso || "—"
+            ].forEach(function (value, index) {
+                var td = document.createElement("td");
+                td.textContent = value;
+                if (index === 2) {
+                    td.className = "attachment-metadata-table__file";
+                    td.title = anexo.nomeArquivo || "";
+                }
+                tr.appendChild(td);
+            });
+            tbody.appendChild(tr);
+        });
+        table.appendChild(tbody);
+        body.appendChild(table);
+    }
+
     function openTask(row) {
         var alvo = row || selectedDetail;
         if (!alvo || !alvo.idinstprn) {
@@ -1665,7 +2512,7 @@
     }
 
     function setActionBusy(busy, message) {
-        ["btn-open-task", "btn-view-attachment", "btn-confirm", "btn-save-edit", "btn-upload-attachment"].forEach(function (id) {
+        ["btn-open-task", "btn-view-attachment", "btn-attachment-metadata", "btn-confirm", "btn-save-edit", "btn-upload-attachment"].forEach(function (id) {
             var button = document.getElementById(id);
             if (button) {
                 button.dataset.actionDisabled = busy ? "S" : "N";
@@ -1752,8 +2599,48 @@
     function setInputValue(id, value) {
         var input = document.getElementById(id);
         if (input) {
-            input.value = value || "";
+            input.value = value == null ? "" : String(value);
         }
+    }
+
+    function formatValorForInput(detail) {
+        if (!detail) {
+            return "";
+        }
+        if (detail.valorRaw !== undefined && detail.valorRaw !== "") {
+            return String(detail.valorRaw).replace(",", ".");
+        }
+        if (detail.valor == null || !isFinite(detail.valor)) {
+            return "";
+        }
+        return String(detail.valor);
+    }
+
+    function parseEditValorInput(valueText) {
+        var normalized = String(valueText || "").trim().replace(",", ".");
+        if (normalized === "") {
+            return { empty: true };
+        }
+        var value = Number(normalized);
+        if (!isFinite(value)) {
+            return { empty: false, invalid: true };
+        }
+        return { empty: false, invalid: false, value: value, text: normalized };
+    }
+
+    function editValorChanged(currentText, detail) {
+        var current = parseEditValorInput(currentText);
+        var original = parseEditValorInput(formatValorForInput(detail));
+        if (current.empty && original.empty) {
+            return false;
+        }
+        if (current.empty !== original.empty) {
+            return true;
+        }
+        if (current.invalid || original.invalid) {
+            return true;
+        }
+        return current.value !== original.value;
     }
 
     function setDetailMessage(message) {
@@ -1803,6 +2690,7 @@
             RAZAOCLIENTE: "razaoCliente",
             NOMETITULAR: "nomeTitular",
             NOMEOPERADORA: "nomeOperadora",
+            NOMECONTAOPERADORA: "nomeContaOperadora",
             APELIDOVEND: "apelidoVend",
             CLIENTE: "cliente",
             OPERADORA: "operadora",
@@ -1872,28 +2760,8 @@
         }
     }
 
-    function loadPagePreferences() {
-        try {
-            var stored = window.localStorage.getItem("facilita-apuracao-faturas:page-size:v1");
-            if (!stored) {
-                return;
-            }
-            pageState.pageSize = parsePageSize(stored);
-            var pageSize = document.getElementById("page-size");
-            if (pageSize) {
-                pageSize.value = String(pageState.pageSize);
-            }
-        } catch (error) {
-            console.warn("[facilita-apuracao] preferências de paginação indisponíveis");
-        }
-    }
-
     function savePagePreferences() {
-        try {
-            window.localStorage.setItem("facilita-apuracao-faturas:page-size:v1", String(pageState.pageSize));
-        } catch (error) {
-            console.warn("[facilita-apuracao] preferências de paginação não persistidas");
-        }
+        saveUserPreferences();
     }
 
     function sortBy(key) {
@@ -1907,6 +2775,7 @@
         applySorting();
         renderGrid();
         updateSortIndicators();
+        saveUserPreferences();
     }
 
     function applySorting() {
@@ -1991,33 +2860,8 @@
         });
     }
 
-    function loadColumnPreferences() {
+    function applyColumnPreferencesToDom() {
         try {
-            var stored = window.localStorage.getItem("facilita-apuracao-faturas:columns:v2");
-            var preferences = stored ? JSON.parse(stored) : null;
-            if (!preferences || typeof preferences.columns !== "object") {
-                return;
-            }
-            Object.keys(visibleColumns).forEach(function (id) {
-                if (typeof preferences.columns[id] === "boolean") {
-                    visibleColumns[id] = preferences.columns[id];
-                }
-            });
-            if (!Object.keys(visibleColumns).some(function (id) { return visibleColumns[id]; })) {
-                visibleColumns.nuapuracao = true;
-            }
-            var storedPins = preferences.pinned;
-            if (typeof storedPins === "string") {
-                storedPins = storedPins ? [storedPins] : [];
-            }
-            if (storedPins && storedPins.length) {
-                pinnedColumns = storedPins.filter(function (id) {
-                    return visibleColumns[id] && columnById(id);
-                });
-            }
-            if (preferences.order && preferences.order.length) {
-                columnOrder = normalizeColumnOrder(preferences.order);
-            }
             Array.prototype.forEach.call(document.querySelectorAll(".column-picker input[data-column]"), function (checkbox) {
                 checkbox.checked = visibleColumns[checkbox.getAttribute("data-column")];
             });
@@ -2029,15 +2873,7 @@
     }
 
     function saveColumnPreferences() {
-        try {
-            window.localStorage.setItem("facilita-apuracao-faturas:columns:v2", JSON.stringify({
-                columns: visibleColumns,
-                pinned: pinnedColumns,
-                order: normalizeColumnOrder(columnOrder)
-            }));
-        } catch (error) {
-            console.warn("[facilita-apuracao] preferências de colunas não persistidas");
-        }
+        saveUserPreferences();
     }
 
     function applyPinnedColumn() {

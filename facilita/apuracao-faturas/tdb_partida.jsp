@@ -15,6 +15,11 @@
 <snk:load>
     <jsp:include page="dados.jsp"/>
     <script>window.FACILITA_APURACAO_BASE = "${BASE_FOLDER}";</script>
+    <script>window.FACILITA_APURACAO_USER = { codusu: "<c:out value='${CODUSU_LOG}' default='0'/>" };</script>
+    <script>window.FACILITA_APURACAO_PREFS = {
+        rootEntity: "AD_APURACAOCONF",
+        confField: "CONF"
+    };</script>
     <script>window.FACILITA_APURACAO_FACADE = {
         appKey: "0bace5b4-6687-4507-9093-a80a82a03bcb",
         serviceName: "ApuracaoDashboardSP",
@@ -24,6 +29,7 @@
         tarefaBotaoId: 78,
         confirmarBotaoId: 79
     };</script>
+    <script src="${BASE_FOLDER}/javascript/sankhya-parameter-drawer-guard.js"></script>
     <script src="${BASE_FOLDER}/javascript/script.js"></script>
 </snk:load>
 
@@ -44,65 +50,142 @@
         </div>
     </header>
 
-    <section class="work-toolbar" aria-label="Resumo e filtros da lista" aria-live="polite">
-        <div class="work-toolbar__metrics">
-            <div class="work-toolbar__metric">
-                <span class="work-toolbar__label">Registros</span>
-                <strong id="row-count">0</strong>
+    <div class="workbench">
+    <section class="panel workbench__top">
+        <section class="work-toolbar work-toolbar--in-top" aria-label="Resumo e filtros da lista" aria-live="polite">
+            <div class="work-toolbar__metrics">
+                <div class="work-toolbar__metric">
+                    <span class="work-toolbar__label">Registros</span>
+                    <strong id="row-count">0</strong>
+                </div>
+                <div class="work-toolbar__metric">
+                    <span class="work-toolbar__label">Pendentes</span>
+                    <strong id="pending-count">0</strong>
+                </div>
+                <div class="work-toolbar__metric">
+                    <span class="work-toolbar__label">Com anexo</span>
+                    <strong id="attachment-count">0</strong>
+                </div>
             </div>
-            <div class="work-toolbar__metric">
-                <span class="work-toolbar__label">Pendentes</span>
-                <strong id="pending-count">0</strong>
-            </div>
-            <div class="work-toolbar__metric">
-                <span class="work-toolbar__label">Com anexo</span>
-                <strong id="attachment-count">0</strong>
-            </div>
-        </div>
-        <div class="work-toolbar__filters">
-            <div class="work-toolbar__server-filters" role="group" aria-label="Filtros da consulta no servidor">
-                <label class="filter-control filter-control--month" for="server-filter-reference">
-                    <span>M&ecirc;s refer&ecirc;ncia</span>
-                    <input type="month" id="server-filter-reference" name="server-filter-reference" autocomplete="off">
+            <div class="work-toolbar__filters">
+                <div class="work-toolbar__server-filters" role="group" aria-label="Filtros da consulta no servidor">
+                    <label class="filter-control filter-control--month" for="server-filter-reference">
+                        <span>M&ecirc;s refer&ecirc;ncia</span>
+                        <input type="month" id="server-filter-reference" name="server-filter-reference" autocomplete="off">
+                    </label>
+                    <label class="filter-control filter-control--toggle" for="server-filter-pending">
+                        <input type="checkbox" id="server-filter-pending" name="server-filter-pending">
+                        <span>Somente pendentes</span>
+                    </label>
+                    <label class="filter-control filter-control--toggle" for="server-filter-attachment">
+                        <input type="checkbox" id="server-filter-attachment" name="server-filter-attachment">
+                        <span>Possui anexo</span>
+                    </label>
+                    <button type="button" class="btn btn--quiet btn--compact" id="btn-apply-server-filters">Aplicar</button>
+                </div>
+                <label class="filter-control filter-control--search">
+                    <span>Pesquisar</span>
+                    <input type="search" id="filter-text" placeholder="N&uacute;mero, conta, contrato..." autocomplete="off">
                 </label>
-                <label class="filter-control filter-control--toggle" for="server-filter-pending">
-                    <input type="checkbox" id="server-filter-pending" name="server-filter-pending">
-                    <span>Somente pendentes</span>
+                <label class="filter-control">
+                    <span>Campo</span>
+                    <select id="filter-field">
+                        <option value="T">Todos os campos</option>
+                        <option value="NUAPURACAO">Sequ&ecirc;ncia</option>
+                        <option value="CODCONTA">Conta</option>
+                        <option value="NUMCONTRATO">Contrato</option>
+                        <option value="NOMECLIENTE">Nome Cliente</option>
+                        <option value="RAZAOCLIENTE">Raz&atilde;o Cliente</option>
+                        <option value="NOMETITULAR">Titular</option>
+                        <option value="NOMEOPERADORA">Operadora</option>
+                        <option value="NOMECONTAOPERADORA">Nome da conta na operadora</option>
+                        <option value="APELIDOVEND">Consultor relacionamento</option>
+                        <option value="CLIENTE">C&oacute;d. cliente</option>
+                        <option value="OPERADORA">C&oacute;d. operadora</option>
+                        <option value="TITULARIDADE">C&oacute;d. titular</option>
+                        <option value="NUNOTA">Faturamento</option>
+                        <option value="VALOR">Valor</option>
+                        <option value="DTVENC">Vencimento</option>
+                    </select>
                 </label>
-                <label class="filter-control filter-control--toggle" for="server-filter-attachment">
-                    <input type="checkbox" id="server-filter-attachment" name="server-filter-attachment">
-                    <span>Possui anexo</span>
-                </label>
-                <button type="button" class="btn btn--quiet btn--compact" id="btn-apply-server-filters">Aplicar</button>
             </div>
-            <label class="filter-control filter-control--search">
-                <span>Pesquisar</span>
-                <input type="search" id="filter-text" placeholder="N&uacute;mero, conta, contrato..." autocomplete="off">
-            </label>
-            <label class="filter-control">
-                <span>Campo</span>
-                <select id="filter-field">
-                    <option value="T">Todos os campos</option>
-                    <option value="NUAPURACAO">Sequ&ecirc;ncia</option>
-                    <option value="CODCONTA">Conta</option>
-                    <option value="NUMCONTRATO">Contrato</option>
-                    <option value="NOMECLIENTE">Nome Cliente</option>
-                    <option value="RAZAOCLIENTE">Raz&atilde;o Cliente</option>
-                    <option value="NOMETITULAR">Titular</option>
-                    <option value="NOMEOPERADORA">Operadora</option>
-                    <option value="APELIDOVEND">Consultor relacionamento</option>
-                    <option value="CLIENTE">C&oacute;d. cliente</option>
-                    <option value="OPERADORA">C&oacute;d. operadora</option>
-                    <option value="TITULARIDADE">C&oacute;d. titular</option>
-                    <option value="NUNOTA">Faturamento</option>
-                    <option value="VALOR">Valor</option>
-                    <option value="DTVENC">Vencimento</option>
-                </select>
-            </label>
+        </section>
+        <div class="workbench-detail" aria-label="Detalhe da apura&ccedil;&atilde;o">
+            <section id="detail-empty" class="detail-empty detail-empty--strip" aria-live="polite">
+                <p>Selecione uma apura&ccedil;&atilde;o na lista para consultar dados e a&ccedil;&otilde;es.</p>
+            </section>
+            <section id="detail-panel" class="detail-panel detail-panel--strip" hidden aria-labelledby="detail-title">
+                <div class="detail-panel__strip">
+                    <div class="detail-panel__zone detail-panel__zone--identity">
+                        <div class="detail-panel__head">
+                            <div>
+                                <span class="eyebrow">APURA&Ccedil;&Atilde;O SELECIONADA</span>
+                                <h2 id="detail-title">Detalhes</h2>
+                            </div>
+                            <span id="detail-state" class="badge badge--muted">Aguardando</span>
+                        </div>
+                        <div class="detail-actions" aria-label="A&ccedil;&otilde;es da apura&ccedil;&atilde;o">
+                            <button type="button" class="btn btn--accent" id="btn-confirm" disabled>Confirmar</button>
+                            <div class="detail-actions__secondary">
+                                <button type="button" class="btn btn--quiet" id="btn-open-task" disabled>Abrir tarefa</button>
+                                <button type="button" class="btn btn--quiet" id="btn-view-attachment" disabled>Ver anexo</button>
+                                <button type="button" class="btn btn--quiet" id="btn-attachment-metadata" disabled>Dados anexo</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="detail-panel__zone detail-panel__zone--edit">
+                        <form id="detail-edit" class="detail-edit" novalidate>
+                            <fieldset>
+                                <legend>Dados edit&aacute;veis</legend>
+                                <div class="detail-edit__fields">
+                                    <label class="filter-control" for="edit-dtvenc">
+                                        <span>Vencimento</span>
+                                        <input type="date" id="edit-dtvenc" name="dtvenc" autocomplete="off">
+                                    </label>
+                                    <label class="filter-control" for="edit-valor">
+                                        <span>Valor</span>
+                                        <input type="number" id="edit-valor" name="valor" min="0" step="0.01" inputmode="decimal" autocomplete="off">
+                                    </label>
+                                    <button type="submit" class="btn btn--quiet" id="btn-save-edit" disabled>Salvar altera&ccedil;&otilde;es</button>
+                                </div>
+                            </fieldset>
+                        </form>
+                    </div>
+                    <div class="detail-panel__zone detail-panel__zone--attach">
+                        <fieldset class="attachment-editor">
+                            <legend>Anexo</legend>
+                            <div class="attachment-editor__fields">
+                                <label class="filter-control" for="attachment-file">
+                                    <span>Arquivo</span>
+                                    <input type="file" id="attachment-file" name="attachment" autocomplete="off">
+                                </label>
+                                <label class="filter-control" for="attachment-type">
+                                    <span>Tipo</span>
+                                    <select id="attachment-type" name="attachmentType" autocomplete="off">
+                                        <option value="">Selecione</option>
+                                        <option value="FO">Original</option>
+                                        <option value="2V">2&ordf; via</option>
+                                        <option value="FA">Ajustada</option>
+                                        <option value="BO">Boleto</option>
+                                        <option value="NF">Nota Fiscal</option>
+                                        <option value="RE">Resumida</option>
+                                    </select>
+                                </label>
+                                <button type="button" class="btn btn--quiet" id="btn-upload-attachment" disabled>Enviar anexo</button>
+                            </div>
+                        </fieldset>
+                    </div>
+                    <div class="detail-panel__zone detail-panel__zone--access">
+                        <fieldset class="access-panel">
+                            <legend>Acesso &agrave; operadora</legend>
+                            <div id="access-body" class="detail-grid access-grid"></div>
+                        </fieldset>
+                    </div>
+                </div>
+                <div id="detail-message" class="inline-message" role="status" aria-live="polite" hidden></div>
+            </section>
         </div>
     </section>
-
-    <div class="workbench">
     <section class="panel workbench__list" aria-labelledby="grid-title">
         <div class="panel__head">
             <div>
@@ -152,73 +235,6 @@
             <span id="grid-error-detail">Tente atualizar a consulta.</span>
         </div>
     </section>
-
-    <aside class="workbench__aside" aria-label="Detalhe da apura&ccedil;&atilde;o">
-    <section id="detail-empty" class="detail-empty" aria-live="polite">
-        <span class="eyebrow">DETALHE</span>
-        <p>Selecione uma apura&ccedil;&atilde;o na lista para consultar dados e a&ccedil;&otilde;es.</p>
-    </section>
-
-    <section id="detail-panel" class="detail-panel" hidden aria-labelledby="detail-title">
-        <div class="detail-panel__head">
-            <div>
-                <span class="eyebrow">APURA&Ccedil;&Atilde;O SELECIONADA</span>
-                <h2 id="detail-title">Detalhes</h2>
-            </div>
-            <span id="detail-state" class="badge badge--muted">Aguardando</span>
-        </div>
-        <div class="detail-actions" aria-label="A&ccedil;&otilde;es da apura&ccedil;&atilde;o">
-            <button type="button" class="btn btn--accent" id="btn-confirm" disabled>Confirmar</button>
-            <div class="detail-actions__secondary">
-                <button type="button" class="btn btn--quiet" id="btn-open-task" disabled>Abrir tarefa</button>
-                <button type="button" class="btn btn--quiet" id="btn-view-attachment" disabled>Ver anexo</button>
-            </div>
-        </div>
-        <form id="detail-edit" class="detail-edit" novalidate>
-            <fieldset>
-                <legend>Dados edit&aacute;veis</legend>
-                <div class="detail-edit__fields">
-                    <label class="filter-control" for="edit-dtvenc">
-                        <span>Vencimento</span>
-                        <input type="date" id="edit-dtvenc" name="dtvenc" autocomplete="off">
-                    </label>
-                    <label class="filter-control" for="edit-valor">
-                        <span>Valor</span>
-                        <input type="number" id="edit-valor" name="valor" min="0" step="0.01" inputmode="decimal" autocomplete="off">
-                    </label>
-                    <button type="submit" class="btn btn--quiet" id="btn-save-edit" disabled>Salvar altera&ccedil;&otilde;es</button>
-                </div>
-            </fieldset>
-        </form>
-        <fieldset class="attachment-editor">
-            <legend>Anexo</legend>
-            <div class="attachment-editor__fields">
-                <label class="filter-control" for="attachment-file">
-                    <span>Arquivo</span>
-                    <input type="file" id="attachment-file" name="attachment" autocomplete="off">
-                </label>
-                <label class="filter-control" for="attachment-type">
-                    <span>Tipo</span>
-                    <select id="attachment-type" name="attachmentType" autocomplete="off">
-                        <option value="">Selecione</option>
-                        <option value="FO">Original</option>
-                        <option value="2V">2&ordf; via</option>
-                        <option value="FA">Ajustada</option>
-                        <option value="BO">Boleto</option>
-                        <option value="NF">Nota Fiscal</option>
-                        <option value="RE">Resumida</option>
-                    </select>
-                </label>
-                <button type="button" class="btn btn--quiet" id="btn-upload-attachment" disabled>Enviar anexo</button>
-            </div>
-        </fieldset>
-        <fieldset class="access-panel">
-            <legend>Acesso &agrave; operadora</legend>
-            <div id="access-body" class="detail-grid access-grid"></div>
-        </fieldset>
-        <div id="detail-message" class="inline-message" role="status" aria-live="polite" hidden></div>
-    </section>
-    </aside>
     </div>
 </main>
 <div id="error-dialog" class="notice-dialog notice-dialog--error" hidden>
@@ -233,6 +249,18 @@
         <h2 id="success-dialog-title">Altera&ccedil;&otilde;es salvas</h2>
         <p id="success-dialog-message"></p>
         <button type="button" class="btn btn--accent" id="success-dialog-close">Fechar</button>
+    </div>
+</div>
+<div id="attachment-metadata-dialog" class="notice-dialog notice-dialog--wide" hidden>
+    <div class="notice-dialog__panel attachment-metadata__panel" role="dialog" aria-modal="true" aria-labelledby="attachment-metadata-title">
+        <h2 id="attachment-metadata-title">Dados do anexo</h2>
+        <p id="attachment-metadata-subtitle" class="attachment-metadata__subtitle"></p>
+        <div id="attachment-metadata-body" class="attachment-metadata__body" tabindex="-1">
+            <p class="attachment-metadata__status" id="attachment-metadata-status">Carregando…</p>
+        </div>
+        <div class="attachment-metadata__footer">
+            <button type="button" class="btn btn--accent" id="attachment-metadata-close">Fechar</button>
+        </div>
     </div>
 </div>
 </body>

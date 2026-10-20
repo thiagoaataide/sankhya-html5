@@ -46,6 +46,7 @@ Referências: `.specs/features/facilita-apuracao-faturas/homologacao.md` (C01–
 | [x] | [A.5](#a-parâmetros-do-gadget-servidor) | Atualizar (sidebar) mantém parâmetros |
 | [x] | [A.6](#a-parâmetros-do-gadget-servidor) | Esconder ao atualizar (UX) |
 | [x] | [A.7](#a-parâmetros-do-gadget-servidor) | Chip “Mês corrente” (documentação) |
+| [ ] | [A.8](#a-parâmetros-do-gadget-servidor) | Hover na borda esquerda não abre barra Sankhya (A15) |
 | [x] | [B.1](#b-busca-visão-de-trabalho) | Busca por sequência |
 | [x] | [B.2](#b-busca-visão-de-trabalho) | Busca por conta |
 | [x] | [B.3](#b-busca-visão-de-trabalho) | Busca por contrato |
@@ -121,6 +122,7 @@ Homologação: **C01**, **C02**. **Bloco fechado** em 2026-09-24.
 | [x] | A.5 | **Atualizar** na sidebar | Recarrega com **mesmos** parâmetros | ok | Header **Atualizar** = mesmo efeito |
 | [x] | A.6 | **Esconder ao atualizar** | Comportamento aceitável | ok | |
 | [x] | A.7 | Clicar chip **Mês corrente** | **Não** altera filtro; só `P_REFERENCIA` | doc | Ressalva UX — não é botão |
+| [ ] | A.8 | Passar o mouse na **borda esquerda** do dashboard (fora do iframe) | Barra `VCompactBar` **não** expande; parâmetros só na toolbar do gadget | pendente | Task A15 — `sankhya-parameter-drawer-guard.js` |
 
 ---
 
@@ -305,6 +307,8 @@ Homologação: **C08**. Pode depender de **T23** + fachada.
 | [ ] | H.2 | Sem anexo | Botão desabilitado | pendente | |
 | [ ] | H.3 | **Abrir tarefa** com workflow | App ou mensagem clara | pendente | |
 | [ ] | H.4 | Sem workflow | Botão desabilitado | pendente | |
+| [ ] | H.5 | **Dados anexo** com anexo | Modal com metadados `TSIANX` alinhados ao legado | pendente | |
+| [ ] | H.6 | Sem anexo | **Dados anexo** desabilitado (como Ver anexo) | pendente | |
 
 ---
 

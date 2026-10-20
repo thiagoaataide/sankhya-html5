@@ -34,6 +34,7 @@ são entregas incrementais com rastreio próprio.
 | --- | --- |
 | Lista (leitura) | `facilita/apuracao-faturas/dados.jsp` |
 | Detalhe (leitura) | `facilita/apuracao-faturas/detalhe_payload.jsp` |
+| Metadados de anexo (modal A11) | `facilita/apuracao-faturas/anexos_payload.jsp` — ver [design-a11-dados-anexo.md](design-a11-dados-anexo.md) |
 | UI e ações | `tdb_partida.jsp`, `javascript/script.js`, `css/style.css` |
 | Botão 77 | `Acoes.apuracao.AtualizarValorVencimento` |
 | Botão 78 | `Acoes.apuracao.ObterTarefaPendente` |
