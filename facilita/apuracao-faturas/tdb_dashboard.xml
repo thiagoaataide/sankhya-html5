@@ -1,5 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <gadget>
+    <prompt-parameters>
+        <parameter id="NUAPURACAO" description="Apura&#231;&#227;o" metadata="integer"
+                   required="false" keep-last="false" keep-date="false"
+                   show-inactives="false" label="NUAPURACAO : N&#250;mero" order="0"/>
+    </prompt-parameters>
     <level id="lvl_facilita_apuracao" description="Apura&#231;&#227;o de Faturas">
         <container orientacao="V" tamanhoRelativo="100">
             <container orientacao="V" tamanhoRelativo="100">

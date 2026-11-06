@@ -39,6 +39,17 @@
     pageContext.setAttribute("pReferenciaSql", pReferenciaSql);
     pageContext.setAttribute("pSomentePendentes", pPendentes == null ? "" : pPendentes.trim().replace("'", ""));
     pageContext.setAttribute("pPossuiAnexo", pAnexo == null ? "" : pAnexo.trim().replace("'", ""));
+    Object nuapuracaoBruto = request.getParameter("NUAPURACAO");
+    if (nuapuracaoBruto == null || String.valueOf(nuapuracaoBruto).trim().isEmpty()) {
+        nuapuracaoBruto = pageContext.findAttribute("NUAPURACAO");
+    }
+    String nuapuracaoTexto = nuapuracaoBruto == null ? "" : String.valueOf(nuapuracaoBruto).trim();
+    if (nuapuracaoTexto.endsWith(".0")) {
+        nuapuracaoTexto = nuapuracaoTexto.substring(0, nuapuracaoTexto.length() - 2);
+    }
+    String pNuapuracao = nuapuracaoTexto.matches("[0-9]+") && !"0".equals(nuapuracaoTexto) ? nuapuracaoTexto : "";
+    pageContext.setAttribute("pNuapuracao", pNuapuracao);
+    pageContext.setAttribute("filtrarNuapuracao", pNuapuracao.isEmpty() ? "N" : "S");
 %>
 
 <snk:query var="dados">
@@ -100,7 +111,7 @@ SELECT TO_CHAR(APU.NUAPURACAO) AS NUAPURACAO,
        TO_CHAR(CFG.DATAFIN, 'YYYY-MM-DD') AS CFGDATAFIN,
        TO_CHAR(CFG.VLRREF, 'FM999999999999990D00', 'NLS_NUMERIC_CHARACTERS=''.,''') AS CFGVLRREF,
        TO_CHAR(CFG.VLRFIXO, 'FM999999999999990D00', 'NLS_NUMERIC_CHARACTERS=''.,''') AS CFGVLRFIXO,
-       LGO.LOGIN AS NOMECONTAOPERADORA,
+       CTA.AD_NOMECONTAOPER AS NOMECONTAOPERADORA,
        LGO.LOGIN AS ACESSO_LOGIN,
        LGO.CPF AS ACESSO_CPF,
        LGO.EMAIL AS ACESSO_EMAIL,
@@ -130,16 +141,25 @@ SELECT TO_CHAR(APU.NUAPURACAO) AS NUAPURACAO,
    AND LGO.CODCONTATO = CTA.CODCONTATOGESTOR
    AND LGO.CODOPERADORA = CTA.OPERADORA
  CROSS JOIN PARAMS P
- WHERE APU.REFERENCIA >= P.DT_REF
-   AND APU.REFERENCIA < ADD_MONTHS(P.DT_REF, 1)
-   AND (P.SOMENTE_PENDENTES <> 'S' OR NVL(APU.CONFIRMADO, 'N') <> 'S')
-   AND (
-       P.POSSUI_ANEXO <> 'S'
-       OR EXISTS (
-           SELECT 1
-             FROM TSIANX ANX_FILTRO
-            WHERE ANX_FILTRO.NOMEINSTANCIA = 'bhApuracao'
-              AND ANX_FILTRO.PKREGISTRO = TO_CHAR(APU.NUAPURACAO) || '_bhApuracao'
+ WHERE (
+       (
+           '${filtrarNuapuracao}' = 'S'
+           AND APU.NUAPURACAO = TO_NUMBER('${pNuapuracao}')
+       )
+       OR (
+           '${filtrarNuapuracao}' = 'N'
+           AND APU.REFERENCIA >= P.DT_REF
+           AND APU.REFERENCIA < ADD_MONTHS(P.DT_REF, 1)
+           AND (P.SOMENTE_PENDENTES <> 'S' OR NVL(APU.CONFIRMADO, 'N') <> 'S')
+           AND (
+               P.POSSUI_ANEXO <> 'S'
+               OR EXISTS (
+                   SELECT 1
+                     FROM TSIANX ANX_FILTRO
+                    WHERE ANX_FILTRO.NOMEINSTANCIA = 'bhApuracao'
+                      AND ANX_FILTRO.PKREGISTRO = TO_CHAR(APU.NUAPURACAO) || '_bhApuracao'
+               )
+           )
        )
    )
  ORDER BY APU.DTVENC NULLS LAST, APU.NUAPURACAO

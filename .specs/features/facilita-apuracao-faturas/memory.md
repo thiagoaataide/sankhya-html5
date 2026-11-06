@@ -74,14 +74,14 @@ Rastreio: task **A9** em
 
 ## Coluna “Nome da conta na operadora” (grade)
 
-No legado (`Apuracao.html`), o dado vem de
-`bhConta.ContatoLoginOperadora.LOGIN` — tabela `BH_FACLGO`, campo `LOGIN`
-(dicionário: *Login* em `ContatoLoginOperadora.xml`). No grid Sankhya o rótulo
-costuma aparecer como **Nome da conta na operadora**; não é `IDENTIFICADOR`
-(`BH_FACCON`) nem `NOMEPARC` da operadora.
+Coluna **Nome da conta na operadora** na grade: `BH_FACCON.AD_NOMECONTAOPER`
+(projeção `CTA.AD_NOMECONTAOPER AS NOMECONTAOPERADORA` em `dados.jsp`; coluna
+`nomeContaOperadora` em `script.js`). Alinha ao Painel de Contas
+(`AD_NOMECONTAOPER`). Não confundir com `IDENTIFICADOR`, `NOMEPARC` da
+operadora nem com `BH_FACLGO.LOGIN`.
 
-Join na consulta do gadget (igual à relação em `Conta.xml` →
-`ContatoLoginOperadora`):
+Login de acesso à operadora no detalhe continua em `BH_FACLGO` (`LGO.LOGIN AS
+ACESSO_LOGIN`), join:
 
 ```sql
 LEFT JOIN BH_FACLGO LGO
@@ -89,10 +89,6 @@ LEFT JOIN BH_FACLGO LGO
  AND LGO.CODCONTATO = CTA.CODCONTATOGESTOR
  AND LGO.CODOPERADORA = CTA.OPERADORA
 ```
-
-Projeção na lista: `LGO.LOGIN AS NOMECONTAOPERADORA` em `dados.jsp`; coluna
-`nomeContaOperadora` em `script.js` (visível por padrão). O mesmo `LOGIN`
-alimenta o painel “Login” no detalhe (`ACESSO_LOGIN` / `data-acesso-login`).
 
 Rastreio: task **A10** em
 `.specs/features/facilita-apuracao-faturas-ajustes/tasks.md`.

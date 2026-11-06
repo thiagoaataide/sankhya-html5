@@ -1,0 +1,1066 @@
+<gadget >
+  <prompt-parameters>
+    <parameter  id="P_REFERENCIA" description="Referência" metadata="date" required="false" keep-last="true" keep-date="false" order="0" label="P_REFERENCIA : Data"/>
+    <parameter  id="P_CONSULTOR" description="Consultor Autorização" metadata="entity:Vendedor@CODVEND" required="false" keep-last="true" keep-date="false" order="1" label="P_CONSULTOR : Entidade/Tabela"/>
+    <parameter  id="P_CONSULTORREL" description="Consultor Relacionamento" metadata="entity:Vendedor@CODVEND" required="false" keep-last="true" keep-date="false" order="2" label="P_CONSULTORREL : Entidade/Tabela"/>
+    <parameter  id="P_MATRIZ" description="Cliente" metadata="entity:Parceiro@CODPARC" required="false" keep-last="false" keep-date="false" order="3" label="P_MATRIZ : Entidade/Tabela"/>
+    <parameter  id="P_NUMCONTRATO" description="Número do Contrato" metadata="entity:bhContrato@NUMCONTRATO" required="false" keep-last="false" keep-date="false" order="4" label="P_NUMCONTRATO : Entidade/Tabela"/>
+    <parameter  id="P_OPERADORA" description="Operadora" metadata="entity:Parceiro@CODPARC" required="false" keep-last="false" keep-date="false" order="5" label="P_OPERADORA : Entidade/Tabela"/>
+    <parameter  id="P_CODCONTA" description="Conta" metadata="entity:bhConta@NUMCONTRATO" required="false" keep-last="false" keep-date="false" order="6" label="P_CODCONTA : Entidade/Tabela"/>
+    <parameter  id="P_PERIODOVENC" description="Período Vencimento" metadata="datePeriod" required="false" keep-last="false" keep-date="false" order="7" label="P_PERIODOVENC : Período"/>
+    <parameter  id="P_TITULARIDADE" description="Titularidade" metadata="entity:Parceiro@CODPARC" required="false" keep-last="false" keep-date="false" order="8" label="P_TITULARIDADE : Entidade/Tabela"/>
+    <parameter  id="P_GRUPOS" description="Grupos" metadata="multiList:Text" listType="sql" required="false" keep-last="true" keep-date="false" show-inactives="false" label="P_GRUPOS : multiList:Text" order="9">
+      <expression type="SQL">
+        <![CDATA[SELECT CODGRUPO AS VALUE, NOMEGRUPO AS LABEL
+FROM TSIGRU
+WHERE CODGRUPO IN (5,11,24,25,14,27,29)]]>
+      </expression>
+    </parameter>
+  </prompt-parameters>
+  <level id="lvl_a4hkhmv" description="Principal">
+    <args>
+      <arg  id="A_MATRIZ" type="integer" label="A_MATRIZ : Número Inteiro"/>
+      <arg  id="CODCONTA" type="integer" label="CODCONTA : Número Inteiro"/>
+      <arg  id="IDINSTPRN" type="integer" label="IDINSTPRN : Número Inteiro"/>
+      <arg  id="IDINSTTAR" type="integer" label="IDINSTTAR : Número Inteiro"/>
+      <arg  id="NUAPURACAO" type="integer" label="NUAPURACAO : Número Inteiro"/>
+    </args>
+    <container orientacao="V" tamanhoRelativo="100">
+      <container orientacao="V" tamanhoRelativo="91">
+        <grid id="grd_a4hkhmw" entityName="bhApuracao" multiplaSelecao="N" useNewGrid="S">
+          <title>
+            <![CDATA[Painel de Contas - Ref :P_REFERENCIA]]>
+          </title>
+          <expression type="sql" data-source="MGEDS">
+            <![CDATA[SELECT 
+        CON.*,
+        APU.*,
+        CASE
+            WHEN CON.AD_PORTAL = 'VFMVE' THEN 'Vivo Fixo MVE'
+            WHEN CON.AD_PORTAL = 'VMMVE' THEN 'Vivo Movel MVE'
+            WHEN CON.AD_PORTAL = 'VED' THEN 'Vivo em Dia'
+            WHEN CON.AD_PORTAL = 'EOL' THEN 'Embratel On line'
+            WHEN CON.AD_PORTAL = 'ECO' THEN 'Embratel Comercial'
+            WHEN CON.AD_PORTAL = 'VPD' THEN 'Vivo Plataforma Digital'
+            WHEN CON.AD_PORTAL = 'VPF' THEN 'Vivo PF'
+            WHEN CON.AD_PORTAL = 'CMO' THEN 'Claro Movel'
+            WHEN CON.AD_PORTAL = 'NCL' THEN 'Net Claro'
+            WHEN CON.AD_PORTAL = 'ALG' THEN 'Algar'
+            WHEN CON.AD_PORTAL = 'OSB' THEN 'Oi Solucoes - B2B'
+            WHEN CON.AD_PORTAL = 'TPV' THEN 'Tim para Voce'
+            WHEN CON.AD_PORTAL = 'TEM' THEN 'Tim Empresas'
+            WHEN CON.AD_PORTAL = 'TUF' THEN 'Tim Ultra Fibra'
+            ELSE CON.AD_PORTAL
+        END AS PORTAL,
+    	CASE WHEN CON.AD_POSSUILIMTESP = 'S' THEN 1 ELSE 0 END AD_POSSUILIMTESP,
+      (SELECT APU.DTVENC - CONT.LIMTRAT  
+       FROM BH_FACCON CONT 
+       WHERE CONT.CODCONTA = APU.CODCONTA AND ROWNUM = 1) AD_DTLIMITE,
+        (SELECT OPC.OPCAO FROM TDDOPC OPC INNER JOIN TDDCAM CAM ON CAM.NUCAMPO = OPC.NUCAMPO WHERE CAM.NOMETAB = 'BH_FACCON' AND CAM.NOMECAMPO = 'TIPOCONTA' AND OPC.VALOR = CON.TIPOCONTA) AS TIPO_CONTA,
+        OPER.NOMEPARC AS NOMEOPERADORA,
+        UNI.NOMEUNIDADE,
+        TITU.NOMEPARC AS NOMETITULARIDADE,
+        TITU.RAZAOSOCIAL AS RAZAOSOCIALTITULAR,
+        PRES.NOMEPARC AS NOMEPRESTADOR,
+        CLI.CODPARC AS CODCLIENTE,
+        CLI.NOMEPARC AS CLIENTES,
+        VEND.APELIDO AS CONSULTOR,
+        CTR.CODVEND AS CODCONSULTOR,
+    	REL.APELIDO AS CONSULTORREL,
+    	CCT.DATAFIN AS DATAFIN,
+        CASE WHEN APU.CONFIRMADO = 'S' OR (APU.OPERADORA IN (1, 2, 3, 4, 1961) AND CON.TIPOCONTA <> 'R') THEN 1 ELSE 0 END AS APURADO,
+    	CASE WHEN APU.FATURAMENTOLIBERADO='S' OR (APU.OPERADORA IN (1, 2, 3, 4, 1961)) THEN 1 ELSE 0 END AS FATURAMENTOLIBERADO,
+    
+         CASE WHEN APU.POSSUIANEXO='S' THEN 1 ELSE 0 END AS POSSUIANEXO,
+        CASE WHEN ((APU.CONFIRMADO='S' OR CON.LANCAUT='S') AND( APU.AUDITORIAFINALIZADA='S' OR APU.AD_AUDITORIAAUTOMATICA='S')) OR (APU.OPERADORA IN (1, 2, 3, 4, 1961) AND CON.TIPOCONTA <> 'R') THEN 1 ELSE 0 END AS AUDITORIAFINALIZADA,
+    --RETIRAR CON.LANCAUT='S' APOS AJUSTE DO LANÇAMENTO AUTOMATICO
+       CASE WHEN APU.OPERADORA IN (1, 2, 3, 4, 1961) THEN 1 ELSE (SELECT CASE WHEN FMG.STATUS LIKE 'Sucesso%' THEN 1 ELSE 0 END FROM TMDFMG FMG WHERE FMG.CODFILA =(SELECT MAX(CODFILA) FROM BH_STAFIL WHERE NUFILA =APU.NUFILA)) END AS ENVIADO,
+    
+       CASE 
+            WHEN (MAIL.EMAILENVIADO = 'N' OR MAIL.DHENVIO IS NULL) AND APU.OPERADORA NOT IN (1, 2, 3, 4, 1961) AND (TO_DATE(APU.DTVENC, 'DD/MM/YYYY') - TO_DATE(SYSDATE, 'DD/MM/YYYY')) >= 9 THEN
+                '<span style="color: #00cc00; font-weight: bold;">NO PRAZO</span>'
+            WHEN (MAIL.EMAILENVIADO = 'N' OR MAIL.DHENVIO IS NULL) AND APU.OPERADORA NOT IN (1, 2, 3, 4, 1961) AND (TO_DATE(APU.DTVENC, 'DD/MM/YYYY') - TO_DATE(SYSDATE, 'DD/MM/YYYY')) <= 8 AND (TO_DATE(APU.DTVENC, 'DD/MM/YYYY') - TO_DATE(SYSDATE, 'DD/MM/YYYY')) >= 5 THEN
+                '<span style="color: #FFA500; font-weight: bold;">ATENÇÃO</span>'
+            WHEN (MAIL.EMAILENVIADO = 'N' OR MAIL.DHENVIO IS NULL) AND APU.OPERADORA NOT IN (1, 2, 3, 4, 1961) AND (TO_DATE(APU.DTVENC, 'DD/MM/YYYY') - TO_DATE(SYSDATE, 'DD/MM/YYYY')) <= 4 AND (TO_DATE(APU.DTVENC, 'DD/MM/YYYY') - TO_DATE(SYSDATE, 'DD/MM/YYYY')) >= 0 THEN
+                '<span style="color: #FF0000; font-weight: bold;">CRITICO</span>'
+            WHEN (MAIL.EMAILENVIADO = 'N' OR MAIL.DHENVIO IS NULL) AND APU.OPERADORA NOT IN (1, 2, 3, 4, 1961) AND (TO_DATE(APU.DTVENC, 'DD/MM/YYYY') - TO_DATE(SYSDATE, 'DD/MM/YYYY')) < 0 THEN
+                '<span style="color: #8B0000; font-weight: bold;">VENCIDO</span>'
+        END AS STATUSLIBERACAO,
+        
+        
+    --COLORIR LINHA OU FONTE QUANDO TUDO CONCLUÍDO
+    --CASE WHEN APU.FATURAMENTOLIBERADO = 'S' THEN '#ffff00' END as BKCOLOR,
+    
+    CASE
+    	WHEN CON.AD_TIPOCONTA = 0 THEN 'MÓVEL'
+    	WHEN CON.AD_TIPOCONTA = 1 THEN 'FIXA'
+    	WHEN CON.AD_TIPOCONTA = 2 THEN 'INTERNET'
+    	WHEN CON.AD_TIPOCONTA = 3 THEN 'STI'
+    	WHEN CON.AD_TIPOCONTA = 4 THEN 'VOIP'
+    	WHEN CON.AD_TIPOCONTA = 5 THEN 'FIXA + INTERNET'
+    	ELSE 'OUTRAS'
+    END AS AD_TIPOCONTA,
+    MAIL.DHENVIO,   
+    
+    (SELECT MAX(IDINSTTAR) FROM TWFITAR TAR WHERE TAR.IDINSTPRN = APU.IDINSTPRN  AND TAR.DHCONCLUSAO IS NULL AND TAR.IDELEMENTO='UserTask_08g3rj6') IDINSTTAR,
+    TITU.CGC_CPF,CCT.VLRREF BASECORRETA,
+    
+    
+    
+    CASE WHEN EXISTS (SELECT 1 FROM AD_CABCONTEST WHERE CODCONTA = CON.CODCONTA AND TO_CHAR(REFERENCIA,'MM/YYYY') = TO_CHAR(:P_REFERENCIA,'MM/YYYY') AND (STATUS = 'A' OR STATUS IS NULL)) THEN 'ABERTO' ELSE
+    CASE WHEN EXISTS (SELECT 1 FROM AD_CABCONTEST CAB INNER JOIN AD_FOLLOWUPCONTEST ITE ON CAB.IDCONTESTACAO = ITE.IDCONTESTACAO WHERE CAB.CODCONTA = CON.CODCONTA AND TO_CHAR(CAB.REFERENCIA,'MM/YYYY') = TO_CHAR(:P_REFERENCIA,'MM/YYYY') AND ITE.RESULTADO = 'P') THEN 'PROCEDENTE' ELSE
+    CASE WHEN EXISTS (SELECT 1 FROM AD_CABCONTEST CAB INNER JOIN AD_FOLLOWUPCONTEST ITE ON CAB.IDCONTESTACAO = ITE.IDCONTESTACAO WHERE CAB.CODCONTA = CON.CODCONTA AND TO_CHAR(CAB.REFERENCIA,'MM/YYYY') = TO_CHAR(:P_REFERENCIA,'MM/YYYY') AND ITE.RESULTADO = 'I') THEN 'IMPROCEDENTE'
+    ELSE 'NAO POSSUI' END END END AS STATUS
+    
+    
+    
+    FROM 
+       
+        BH_FACCON CON 
+            INNER JOIN BH_FACCCT CCT ON CCT.CODCONTA = CON.CODCONTA --AND NVL(CCT.DATAFIN,SYSDATE)>= SYSDATE (TESTE PARA EXIBIR CONTAS COM DATA FIM MAIOR QUE SYSDATE)
+            INNER JOIN BH_FACCTR CTR ON CTR.NUMCONTRATO = CCT.NUMCONTRATO 
+            INNER JOIN BH_FACAPU APU ON APU.CODCONTA = CON.CODCONTA  
+            INNER JOIN TGFPAR OPER ON OPER.CODPARC = CON.OPERADORA
+            INNER JOIN TGFPAR TITU ON TITU.CODPARC = CON.TITULARIDADE 
+            LEFT JOIN TGFPAR PRES ON PRES.CODPARC = CON.PRESTADOR 
+            INNER JOIN TGFPAR CLI ON CLI.CODPARC = CTR.CODPARC 
+            LEFT JOIN TGFVEN VEND ON VEND.CODVEND = CTR.BH_CODASSESSOR
+            INNER JOIN TGFVEN REL ON REL.CODVEND = CTR.AD_CODASSESSOR   
+            LEFT JOIN TGFPAR MAT ON MAT.CODPARC=TITU.CODPARCMATRIZ
+            LEFT JOIN BH_FILMAIL MAIL ON MAIL.NUFILA=APU.NUFILA
+            LEFT JOIN AD_UNIDADE UNI ON CON.AD_COD_UNIDADE=UNI.COD_UNIDADE
+    
+    WHERE
+--        CCT.DATAFIN>=SYSDATE OR CCT.DATAFIN IS NULL OR (TO_CHAR(CCT.DATAFIN,'MMYYYY') = TO_CHAR(APU.REFERENCIA,'MMYYYY')) AND
+    	(CCT.DATAFIN>=APU.REFERENCIA OR CCT.DATAFIN IS NULL OR (TO_CHAR(CCT.DATAFIN,'MMYYYY') = TO_CHAR(APU.REFERENCIA,'MMYYYY'))) AND
+
+        (CTR.NUMCONTRATO = :P_NUMCONTRATO OR :P_NUMCONTRATO IS NULL) AND 
+    	(CLI.CODPARC = (SELECT TGFPAR.CODPARCMATRIZ FROM TGFPAR WHERE CODPARC = :P_MATRIZ) OR :P_MATRIZ IS NULL) AND
+        (CON.CODCONTA = :P_CODCONTA OR :P_CODCONTA IS NULL) AND 
+        (CON.OPERADORA = :P_OPERADORA OR :P_OPERADORA IS NULL) AND 
+        (CON.TITULARIDADE = :P_TITULARIDADE OR :P_TITULARIDADE IS NULL) AND 
+        ((APU.DTVENC BETWEEN :P_PERIODOVENC.INI AND :P_PERIODOVENC.FIN) OR :P_PERIODOVENC.INI IS NULL) AND 
+        (CTR.BH_CODASSESSOR = :P_CONSULTOR OR :P_CONSULTOR IS NULL) AND
+     	(CTR.AD_CODASSESSOR = :P_CONSULTORREL OR :P_CONSULTORREL IS NULL) AND 
+        (TO_CHAR(APU.REFERENCIA,'MM-YYYY') = TO_CHAR(:P_REFERENCIA,'MM-YYYY') OR :P_REFERENCIA IS NULL) 
+
+        AND EXISTS (
+            SELECT 1
+            FROM TSIUSU USU
+            INNER JOIN TSIGRU GRU ON USU.CODGRUPO = GRU.CODGRUPO
+            WHERE USU.CODUSU = VEND.CODVEND
+              AND GRU.CODGRUPO IN :P_GRUPOS
+        )
+    ORDER BY 
+    	APU.DTVENC ASC,CLI.CODPARC]]>
+          </expression>
+          <metadata>
+            <field name="CODCONTA" label="Cód. Conta" type="I" visible="true" useFooter="false">
+            </field>
+            <field name="TIPOCONTA" label="Tipo Conta" type="S" visible="true" useFooter="false">
+            </field>
+            <field name="OPERADORA" label="Operadora" type="I" visible="true" useFooter="false">
+            </field>
+            <field name="TITULARIDADE" label="Titularidade" type="I" visible="true" useFooter="false">
+            </field>
+            <field name="CEP" label="CEP" type="S" visible="true" useFooter="false">
+            </field>
+            <field name="CODEND" label="Cód. Endereço" type="I" visible="true" useFooter="false">
+            </field>
+            <field name="NUMEND" label="Número End." type="S" visible="true" useFooter="false">
+            </field>
+            <field name="CODBAI" label="Cód. Bairro" type="I" visible="true" useFooter="false">
+            </field>
+            <field name="CODCID" label="Cód. Cidade" type="I" visible="true" useFooter="false">
+            </field>
+            <field name="COMPLEMENTO" label="Complemento" type="S" visible="true" useFooter="false">
+            </field>
+            <field name="PRESTADOR" label="Prestador" type="I" visible="true" useFooter="false">
+            </field>
+            <field name="ATIVO" label="Ativo" type="S" visible="true" useFooter="false">
+            </field>
+            <field name="DATAINI" label="Data Inicial" type="D" visible="true" useFooter="false">
+            </field>
+            <field name="DATAFIN" label="Data Final" type="D" visible="true" useFooter="false">
+            </field>
+            <field name="LANCAUT" label="Lançamento Aut." type="S" visible="true" useFooter="false">
+            </field>
+            <field name="TOLERANCIA" label="Tolerância" type="F" visible="true" useFooter="false" mask="#.##0 %">
+            </field>
+            <field name="OBGRELAT" label="Obrig. Relatório" type="S" visible="true" useFooter="false">
+            </field>
+            <field name="LIMTRAT" label="Limite de Tratamento" type="I" visible="true" useFooter="false">
+            </field>
+            <field name="DIAVENCORIG" label="Venc. Original" type="I" visible="true" useFooter="false">
+            </field>
+            <field name="CODCONTATO" label="Cód. Contato" type="I" visible="true" useFooter="false">
+            </field>
+            <field name="CODPARCGESTOR" label="Cód. Parc. Gestor" type="I" visible="true" useFooter="false">
+            </field>
+            <field name="CODCONTATOGESTOR" label="Cód. Contato Gestor" type="I" visible="true" useFooter="false">
+            </field>
+            <field name="CODCONTATOOPERADORA" label="Cód. Contato Operadora" type="I" visible="true" useFooter="false">
+            </field>
+            <field name="IDENTIFICADOR" label="Conta" type="S" visible="true" useFooter="false">
+            </field>
+            <field name="VLREST" label="Estimado" type="F" visible="true" useFooter="false" mask="R$ #.##0,00">
+            </field>
+            <field name="AD_DEBITO_AUTOMATICO" label="AD_DEBITO_AUTOMATICO" type="S" visible="true" useFooter="false">
+            </field>
+            <field name="AD_CODEND" label="AD_CODEND" type="I" visible="true" useFooter="false">
+            </field>
+            <field name="AD_CODBAI" label="AD_CODBAI" type="I" visible="true" useFooter="false">
+            </field>
+            <field name="AD_CODCID" label="AD_CODCID" type="I" visible="true" useFooter="false">
+            </field>
+            <field name="AD_CODENDFUNC" label="AD_CODENDFUNC" type="I" visible="true" useFooter="false">
+            </field>
+            <field name="AD_CODBAIFUNC" label="AD_CODBAIFUNC" type="I" visible="true" useFooter="false">
+            </field>
+            <field name="AD_CODCIDFUNC" label="AD_CODCIDFUNC" type="I" visible="true" useFooter="false">
+            </field>
+            <field name="AD_NUMENDINST" label="AD_NUMENDINST" type="I" visible="true" useFooter="false">
+            </field>
+            <field name="AD_NUMENDFUNC" label="AD_NUMENDFUNC" type="I" visible="true" useFooter="false">
+            </field>
+            <field name="AD_COMPLEMENTOINST" label="AD_COMPLEMENTOINST" type="S" visible="true" useFooter="false">
+            </field>
+            <field name="AD_COMPLEMENTOFUNC" label="AD_COMPLEMENTOFUNC" type="S" visible="true" useFooter="false">
+            </field>
+            <field name="AD_TIPOCONTA" label="Tipo" type="S" visible="true" useFooter="false">
+            </field>
+            <field name="AD_CODPARCMATRIZ" label="AD_CODPARCMATRIZ" type="I" visible="true" useFooter="false">
+            </field>
+            <field name="AD_NOMECONTAOPER" label="AD_NOMECONTAOPER" type="S" visible="true" useFooter="false">
+            </field>
+            <field name="AD_SALDO" label="AD_SALDO" type="F" visible="true" useFooter="false">
+            </field>
+            <field name="AD_DTVENC" label="AD_DTVENC" type="D" visible="true" useFooter="false">
+            </field>
+            <field name="AD_DTINI" label="AD_DTINI" type="D" visible="true" useFooter="false">
+            </field>
+            <field name="AD_CONTOPERDESC" label="AD_CONTOPERDESC" type="S" visible="true" useFooter="false">
+            </field>
+            <field name="AD_CONDRESCISAO" label="AD_CONDRESCISAO" type="S" visible="true" useFooter="false">
+            </field>
+            <field name="AD_POSSUILIMTESP" label="Possui Limite diferenciado?" type="S" visible="true" useFooter="false">
+            </field>
+            <field name="AD_TIPOLOGIN" label="AD_TIPOLOGIN" type="S" visible="true" useFooter="false">
+            </field>
+            <field name="AD_LOGIN" label="AD_LOGIN" type="S" visible="true" useFooter="false">
+            </field>
+            <field name="AD_SENHA" label="AD_SENHA" type="S" visible="true" useFooter="false">
+            </field>
+            <field name="AD_CAMPOADICIONAL" label="AD_CAMPOADICIONAL" type="S" visible="true" useFooter="false">
+            </field>
+            <field name="AD_COD_UNIDADE" label="AD_COD_UNIDADE" type="I" visible="true" useFooter="false">
+            </field>
+            <field name="AD_RELATORIO" label="AD_RELATORIO" type="S" visible="true" useFooter="false">
+            </field>
+            <field name="AD_CEPENDINS" label="AD_CEPENDINS" type="S" visible="true" useFooter="false">
+            </field>
+            <field name="AD_CEPENDFUN" label="AD_CEPENDFUN" type="S" visible="true" useFooter="false">
+            </field>
+            <field name="AD_TIPOACESSO" label="AD_TIPOACESSO" type="S" visible="true" useFooter="false">
+            </field>
+            <field name="AD_ERROGESTOR" label="AD_ERROGESTOR" type="S" visible="true" useFooter="false">
+            </field>
+            <field name="AD_DHALTER" label="AD_DHALTER" type="D" visible="true" useFooter="false">
+            </field>
+            <field name="AD_PORTAL" label="AD_PORTAL" type="S" visible="true" useFooter="false">
+            </field>
+            <field name="AD_VISIBILIDADE" label="AD_VISIBILIDADE" type="S" visible="true" useFooter="false">
+            </field>
+            <field name="NUAPURACAO" label="Nro. Apuração" type="I" visible="true" useFooter="false">
+            </field>
+            <field name="VALOR" label="Apurado" type="F" visible="true" useFooter="false" mask="R$ #.##0,00">
+            </field>
+            <field name="REFERENCIA" label="Referência" type="D" visible="true" useFooter="false" mask="MMM-YY">
+            </field>
+            <field name="DTVENC" label="Dt. Vencimento" type="D" visible="true" useFooter="false">
+            </field>
+            <field name="CONFIRMADO" label="Apuração" type="S" visible="true" useFooter="false">
+            </field>
+            <field name="IDINSTPRN" label="ID Fluxo" type="I" visible="true" useFooter="false">
+            </field>
+            <field name="NUMCONTRATO" label="Nro. Contrato" type="I" visible="true" useFooter="false">
+            </field>
+            <field name="REFERENCIAADIADA" label="Referencia P/ Fat. Adiada" type="D" visible="true" useFooter="false">
+            </field>
+            <field name="CODVEND" label="CODVEND" type="I" visible="true" useFooter="false">
+            </field>
+            <field name="CLIENTE" label="Cliente" type="S" visible="false" useFooter="false">
+            </field>
+            <field name="SEQUENCIACON" label="SEQUENCIACON" type="I" visible="true" useFooter="false">
+            </field>
+            <field name="EMAILENVIADO" label="E-mail Enviado" type="S" visible="false" useFooter="false">
+            </field>
+            <field name="POSSUIANEXO" label="Anexo" type="I" visible="true" useFooter="false">
+              <formatter  equalThan="1">
+                <![CDATA[<span style="; src:iconAccept; somente-icone:S">$VALUE</span>]]>
+              </formatter>
+              <formatter  equalThan="0">
+                <![CDATA[<span style="; src:iconWarningCircle; somente-icone:S">$VALUE</span>]]>
+              </formatter>
+            </field>
+            <field name="AUDITORIAFINALIZADA" label="Auditoria" type="I" visible="true" useFooter="false">
+              <formatter  equalThan="1">
+                <![CDATA[<span style="; src:iconAccept; somente-icone:S">$VALUE</span>]]>
+              </formatter>
+              <formatter  equalThan="0">
+                <![CDATA[<span style="; src:iconWarningCircle; somente-icone:S">$VALUE</span>]]>
+              </formatter>
+            </field>
+            <field name="FATURAMENTOLIBERADO" label="Autorização" type="I" visible="true" useFooter="false">
+              <formatter  equalThan="1">
+                <![CDATA[<span style="; src:iconAccept; somente-icone:S">$VALUE</span>]]>
+              </formatter>
+              <formatter  equalThan="0">
+                <![CDATA[<span style="; src:iconWarningCircle; somente-icone:S">$VALUE</span>]]>
+              </formatter>
+            </field>
+            <field name="SEQUENCIAFATURAMENTO" label="SEQUENCIAFATURAMENTO" type="I" visible="true" useFooter="false">
+            </field>
+            <field name="AD_AUDITORIAAUTOMATICA" label="AD_AUDITORIAAUTOMATICA" type="S" visible="true" useFooter="false">
+            </field>
+            <field name="VALORREF" label="Base errada" type="F" visible="false" useFooter="false" mask="R$ #.##0,00">
+            </field>
+            <field name="AD_CODASSESSOR" label="AD_CODASSESSOR" type="I" visible="true" useFooter="false">
+            </field>
+            <field name="LINK" label="Download" type="S" visible="true" useFooter="false">
+            </field>
+            <field name="NUFILA" label="NUFILA" type="I" visible="true" useFooter="false">
+            </field>
+            <field name="NUNOTA" label="NUNOTA" type="I" visible="true" useFooter="false">
+            </field>
+            <field name="AD_RELGERADO" label="AD_RELGERADO" type="S" visible="true" useFooter="false">
+            </field>
+            <field name="AD_CODUSU" label="AD_CODUSU" type="I" visible="true" useFooter="false">
+            </field>
+            <field name="TAMANHOANEXO" label="TAMANHOANEXO" type="F" visible="true" useFooter="false">
+            </field>
+            <field name="PLANO" label="PLANO" type="I" visible="true" useFooter="false">
+            </field>
+            <field name="PORTAL" label="PORTAL" type="S" visible="true" useFooter="false">
+            </field>
+            <field name="AD_DTLIMITE" label="Dt. Limite de Tratamento" type="D" visible="true" useFooter="false">
+            </field>
+            <field name="TIPO_CONTA" label="Tipo Conta" type="S" visible="true" useFooter="false">
+            </field>
+            <field name="NOMEOPERADORA" label="Operadora" type="S" visible="true" useFooter="false">
+            </field>
+            <field name="NOMEUNIDADE" label="Unidade" type="S" visible="true" useFooter="false">
+            </field>
+            <field name="NOMETITULARIDADE" label="Titular" type="S" visible="true" useFooter="false">
+            </field>
+            <field name="RAZAOSOCIALTITULAR" label="Razao Social" type="S" visible="true" useFooter="false">
+            </field>
+            <field name="NOMEPRESTADOR" label="Prestador" type="S" visible="true" useFooter="false">
+            </field>
+            <field name="CODCLIENTE" label="Cód CLiente" type="I" visible="true" useFooter="false">
+            </field>
+            <field name="CLIENTES" label="Cliente" type="S" visible="true" useFooter="false">
+            </field>
+            <field name="CONSULTOR" label="Consultor Autorização" type="S" visible="true" useFooter="false">
+            </field>
+            <field name="CODCONSULTOR" label="CODCONSULTOR" type="I" visible="true" useFooter="false">
+            </field>
+            <field name="CONSULTORREL" label="Consultor Relacionamento" type="S" visible="true" useFooter="false">
+            </field>
+            <field name="APURADO" label="Apurado?" type="I" visible="true" useFooter="false">
+              <formatter  equalThan="1">
+                <![CDATA[<span style="; src:iconAccept; somente-icone:S">$VALUE</span>]]>
+              </formatter>
+              <formatter  equalThan="0">
+                <![CDATA[<span style="; src:iconWarningCircle; somente-icone:S">$VALUE</span>]]>
+              </formatter>
+            </field>
+            <field name="ENVIADO" label="Envio" type="I" visible="true" useFooter="false">
+              <formatter  equalThan="1">
+                <![CDATA[<span style="; src:iconAccept; somente-icone:S">$VALUE</span>]]>
+              </formatter>
+              <formatter  equalThan="0">
+                <![CDATA[<span style="; src:iconWarningCircle; somente-icone:S">$VALUE</span>]]>
+              </formatter>
+            </field>
+            <field name="STATUSLIBERACAO" label="Status de Vencimento" type="S" visible="true" useFooter="false">
+              <formatter  formula="true">
+                <formula >
+                  <![CDATA[]]>
+                </formula>
+                <![CDATA[<span style="color:#009900">
+                <b>$VALUE</b>
+              </span>]]>
+            </formatter>
+          </field>
+          <field name="DHENVIO" label="Data Email" type="D" visible="true" useFooter="false">
+          </field>
+          <field name="IDINSTTAR" label="IDINSTTAR" type="I" visible="true" useFooter="false">
+          </field>
+          <field name="CGC_CPF" label="CNPJ" type="S" visible="true" useFooter="false">
+          </field>
+          <field name="BASECORRETA" label="Base" type="F" visible="true" useFooter="false" mask="R$ #.##0,00">
+          </field>
+          <field name="STATUS" label="Status Contestação" type="S" visible="true" useFooter="false">
+          </field>
+        </metadata>
+        <on-click  navigate-to="lvl_a3q3afm">
+          <param id="A_MATRIZ">$AD_CODPARCMATRIZ</param>
+          <param id="A_CODCONTA">$CODCONTA</param>
+        </on-click>
+        <refresh-details  ui-list="svl_048,svl_fsahak,svl_fsahal,svl_fsahan,svl_fsahao">
+          <param id="NUAPURACAO">$NUAPURACAO</param>
+          <param id="IDINSTPRN ">$IDINSTPRN</param>
+          <param id="IDINSTTAR">$IDINSTTAR</param>
+          <param id="A_MATRIZ">$AD_CODPARCMATRIZ</param>
+          <param id="CODCONTA">$CODCONTA</param>
+        </refresh-details>
+      </grid>
+    </container>
+    <container orientacao="H" tamanhoRelativo="9">
+      <container orientacao="V" tamanhoRelativo="20">
+        <simple-value id="svl_048">
+          <args>
+            <arg id="NUAPURACAO" type="integer">
+            </arg>
+            <arg id="IDINSTPRN " type="integer">
+            </arg>
+            <arg id="IDINSTTAR" type="integer">
+            </arg>
+            <arg id="A_MATRIZ" type="integer">
+            </arg>
+            <arg id="CODCONTA" type="integer">
+            </arg>
+          </args>
+          <expression type="sql" data-source="MGEDS">
+            <![CDATA[SELECT :NUAPURACAO NUAPURACAO FROM DUAL]]>
+          </expression>
+          <metadata>
+            <field name="NUAPURACAO" label="NUAPURACAO" type="S" visible="true" useFooter="false">
+            </field>
+          </metadata>
+          <value-expression >
+            <![CDATA[<button default>Abrir Apuração de Contas - Novo</button>]]>
+          </value-expression>
+          <on-click-launcher  resource-id="br.com.sankhya.menu.adicional.nuDsb.90.1">
+            <NUAPURACAO>$NUAPURACAO</NUAPURACAO>
+          </on-click-launcher>
+        </simple-value>
+      </container>
+      <container orientacao="V" tamanhoRelativo="20">
+        <simple-value id="svl_fsahak">
+          <args>
+            <arg id="NUAPURACAO" type="integer">
+            </arg>
+            <arg id="IDINSTPRN " type="integer">
+            </arg>
+            <arg id="IDINSTTAR" type="integer">
+            </arg>
+            <arg id="A_MATRIZ" type="integer">
+            </arg>
+            <arg id="CODCONTA" type="integer">
+            </arg>
+          </args>
+          <expression type="sql" data-source="MGEDS">
+            <![CDATA[SELECT :NUAPURACAO NUAPURACAO FROM DUAL]]>
+          </expression>
+          <metadata>
+            <field name="NUAPURACAO" label="NUAPURACAO" type="S" visible="true" useFooter="false">
+            </field>
+          </metadata>
+          <value-expression >
+            <![CDATA[<button default>Abrir Apuração de Contas</button>]]>
+          </value-expression>
+          <on-click-launcher  resource-id="br.com.sankhya.bh.conffaccon.rot.apuracao">
+            <NUAPURACAO>$NUAPURACAO</NUAPURACAO>
+          </on-click-launcher>
+        </simple-value>
+      </container>
+      <container orientacao="V" tamanhoRelativo="20">
+        <simple-value id="svl_fsahal">
+          <args>
+            <arg id="NUAPURACAO" type="integer">
+            </arg>
+            <arg id="IDINSTPRN " type="integer">
+            </arg>
+            <arg id="IDINSTTAR" type="integer">
+            </arg>
+            <arg id="A_MATRIZ" type="integer">
+            </arg>
+            <arg id="CODCONTA" type="integer">
+            </arg>
+          </args>
+          <expression type="sql" data-source="MGEDS">
+            <![CDATA[SELECT CON.*,APU.*,
+(SELECT OPC.OPCAO FROM TDDOPC OPC INNER JOIN TDDCAM CAM ON CAM.NUCAMPO = OPC.NUCAMPO WHERE CAM.NOMETAB = 'BH_FACCON' AND CAM.NOMECAMPO = 'TIPOCONTA' AND OPC.VALOR = CON.TIPOCONTA) AS TIPO_CONTA,
+OPER.NOMEPARC AS NOMEOPERADORA,
+CON.OPERADORA AS OPERADORACERTO,
+TITU.NOMEPARC AS NOMETITULARIDADE,
+PRES.NOMEPARC AS NOMEPRESTADOR,
+CLI.CODPARC AS CODCLIENTE,
+CLI.NOMEPARC AS CLIENTE,
+TITU.CODPARCMATRIZ AS MATRIZCLIENTE,
+MATRIZ.NOMEPARC AS NOMEMATRIZCLIENTE,
+VEND.NOMEPARC AS CONSULTOR,
+CTR.CODVEND AS CODCONSULTOR,
+CASE WHEN APU.CONFIRMADO = 'S' AND APU.IDINSTPRN IS NOT NULL THEN 'SIM' ELSE 'NÃO' END AS APURADO
+
+,(SELECT MAX(IDINSTTAR) FROM TWFITAR TAR WHERE TAR.IDINSTPRN = APU.IDINSTPRN  AND TAR.DHCONCLUSAO IS NULL AND TAR.IDELEMENTO='UserTask_08g3rj6') IDINSTTAR
+FROM BH_FACCON CON
+INNER JOIN BH_FACCCT CCT ON CCT.CODCONTA = CON.CODCONTA
+INNER JOIN BH_FACCTR CTR ON CTR.NUMCONTRATO = CCT.NUMCONTRATO
+INNER JOIN BH_FACAPU APU ON APU.CODCONTA = CON.CODCONTA
+INNER JOIN TGFPAR OPER ON OPER.CODPARC = CON.OPERADORA
+INNER JOIN TGFPAR TITU ON TITU.CODPARC = CON.TITULARIDADE
+LEFT JOIN TGFPAR PRES ON PRES.CODPARC = CON.PRESTADOR
+INNER JOIN TGFPAR CLI ON CLI.CODPARC = CTR.CODPARC
+LEFT JOIN TGFPAR MATRIZ ON MATRIZ.CODPARC = TITU.CODPARCMATRIZ
+LEFT JOIN TGFPAR VEND ON VEND.CODPARC = CTR.CODVEND
+WHERE 
+(TITU.CODPARCMATRIZ  = :A_MATRIZ)
+AND (TO_CHAR(APU.REFERENCIA,'MM') = TO_CHAR(:P_DTREF,'MM') OR :P_DTREF IS NULL) 
+AND APU.NUAPURACAO= :NUAPURACAO
+ORDER BY CCT.NUMCONTRATO,CON.LIMTRAT]]>
+          </expression>
+          <metadata>
+            <field name="CODCONTA" label="CODCONTA" type="I" visible="true" useFooter="false">
+            </field>
+            <field name="TIPOCONTA" label="TIPOCONTA" type="S" visible="true" useFooter="false">
+            </field>
+            <field name="OPERADORA" label="OPERADORA" type="I" visible="true" useFooter="false">
+            </field>
+            <field name="TITULARIDADE" label="TITULARIDADE" type="I" visible="true" useFooter="false">
+            </field>
+            <field name="CEP" label="CEP" type="S" visible="true" useFooter="false">
+            </field>
+            <field name="CODEND" label="CODEND" type="I" visible="true" useFooter="false">
+            </field>
+            <field name="NUMEND" label="NUMEND" type="S" visible="true" useFooter="false">
+            </field>
+            <field name="CODBAI" label="CODBAI" type="I" visible="true" useFooter="false">
+            </field>
+            <field name="CODCID" label="CODCID" type="I" visible="true" useFooter="false">
+            </field>
+            <field name="COMPLEMENTO" label="COMPLEMENTO" type="S" visible="true" useFooter="false">
+            </field>
+            <field name="PRESTADOR" label="PRESTADOR" type="I" visible="true" useFooter="false">
+            </field>
+            <field name="ATIVO" label="ATIVO" type="S" visible="true" useFooter="false">
+            </field>
+            <field name="DATAINI" label="DATAINI" type="D" visible="true" useFooter="false">
+            </field>
+            <field name="DATAFIN" label="DATAFIN" type="D" visible="true" useFooter="false">
+            </field>
+            <field name="LANCAUT" label="LANCAUT" type="S" visible="true" useFooter="false">
+            </field>
+            <field name="TOLERANCIA" label="TOLERANCIA" type="F" visible="true" useFooter="false">
+            </field>
+            <field name="OBGRELAT" label="OBGRELAT" type="S" visible="true" useFooter="false">
+            </field>
+            <field name="LIMTRAT" label="LIMTRAT" type="I" visible="true" useFooter="false">
+            </field>
+            <field name="DIAVENCORIG" label="DIAVENCORIG" type="I" visible="true" useFooter="false">
+            </field>
+            <field name="CODCONTATO" label="CODCONTATO" type="I" visible="true" useFooter="false">
+            </field>
+            <field name="CODPARCGESTOR" label="CODPARCGESTOR" type="I" visible="true" useFooter="false">
+            </field>
+            <field name="CODCONTATOGESTOR" label="CODCONTATOGESTOR" type="I" visible="true" useFooter="false">
+            </field>
+            <field name="CODCONTATOOPERADORA" label="CODCONTATOOPERADORA" type="I" visible="true" useFooter="false">
+            </field>
+            <field name="IDENTIFICADOR" label="IDENTIFICADOR" type="S" visible="true" useFooter="false">
+            </field>
+            <field name="VLREST" label="VLREST" type="F" visible="true" useFooter="false">
+            </field>
+            <field name="AD_DEBITO_AUTOMATICO" label="AD_DEBITO_AUTOMATICO" type="S" visible="true" useFooter="false">
+            </field>
+            <field name="AD_CODEND" label="AD_CODEND" type="I" visible="true" useFooter="false">
+            </field>
+            <field name="AD_CODBAI" label="AD_CODBAI" type="I" visible="true" useFooter="false">
+            </field>
+            <field name="AD_CODCID" label="AD_CODCID" type="I" visible="true" useFooter="false">
+            </field>
+            <field name="AD_CODENDFUNC" label="AD_CODENDFUNC" type="I" visible="true" useFooter="false">
+            </field>
+            <field name="AD_CODBAIFUNC" label="AD_CODBAIFUNC" type="I" visible="true" useFooter="false">
+            </field>
+            <field name="AD_CODCIDFUNC" label="AD_CODCIDFUNC" type="I" visible="true" useFooter="false">
+            </field>
+            <field name="AD_NUMENDINST" label="AD_NUMENDINST" type="I" visible="true" useFooter="false">
+            </field>
+            <field name="AD_NUMENDFUNC" label="AD_NUMENDFUNC" type="I" visible="true" useFooter="false">
+            </field>
+            <field name="AD_COMPLEMENTOINST" label="AD_COMPLEMENTOINST" type="S" visible="true" useFooter="false">
+            </field>
+            <field name="AD_COMPLEMENTOFUNC" label="AD_COMPLEMENTOFUNC" type="S" visible="true" useFooter="false">
+            </field>
+            <field name="AD_TIPOCONTA" label="AD_TIPOCONTA" type="I" visible="true" useFooter="false">
+            </field>
+            <field name="AD_CODPARCMATRIZ" label="AD_CODPARCMATRIZ" type="I" visible="true" useFooter="false">
+            </field>
+            <field name="AD_NOMECONTAOPER" label="AD_NOMECONTAOPER" type="S" visible="true" useFooter="false">
+            </field>
+            <field name="AD_SALDO" label="AD_SALDO" type="F" visible="true" useFooter="false">
+            </field>
+            <field name="AD_DTVENC" label="AD_DTVENC" type="D" visible="true" useFooter="false">
+            </field>
+            <field name="AD_DTINI" label="AD_DTINI" type="D" visible="true" useFooter="false">
+            </field>
+            <field name="AD_CONTOPERDESC" label="AD_CONTOPERDESC" type="S" visible="true" useFooter="false">
+            </field>
+            <field name="AD_CONDRESCISAO" label="AD_CONDRESCISAO" type="S" visible="true" useFooter="false">
+            </field>
+            <field name="AD_POSSUILIMTESP" label="AD_POSSUILIMTESP" type="S" visible="true" useFooter="false">
+            </field>
+            <field name="AD_TIPOLOGIN" label="AD_TIPOLOGIN" type="S" visible="true" useFooter="false">
+            </field>
+            <field name="AD_LOGIN" label="AD_LOGIN" type="S" visible="true" useFooter="false">
+            </field>
+            <field name="AD_SENHA" label="AD_SENHA" type="S" visible="true" useFooter="false">
+            </field>
+            <field name="AD_CAMPOADICIONAL" label="AD_CAMPOADICIONAL" type="S" visible="true" useFooter="false">
+            </field>
+            <field name="NUAPURACAO" label="NUAPURACAO" type="I" visible="true" useFooter="false">
+            </field>
+            <field name="VALOR" label="VALOR" type="F" visible="true" useFooter="false">
+            </field>
+            <field name="REFERENCIA" label="REFERENCIA" type="D" visible="true" useFooter="false">
+            </field>
+            <field name="DTVENC" label="DTVENC" type="D" visible="true" useFooter="false">
+            </field>
+            <field name="CONFIRMADO" label="CONFIRMADO" type="S" visible="true" useFooter="false">
+            </field>
+            <field name="IDINSTPRN" label="IDINSTPRN" type="I" visible="true" useFooter="false">
+            </field>
+            <field name="NUMCONTRATO" label="NUMCONTRATO" type="I" visible="true" useFooter="false">
+            </field>
+            <field name="REFERENCIAADIADA" label="REFERENCIAADIADA" type="D" visible="true" useFooter="false">
+            </field>
+            <field name="CODVEND" label="CODVEND" type="I" visible="true" useFooter="false">
+            </field>
+            <field name="CLIENTE" label="CLIENTE" type="S" visible="true" useFooter="false">
+            </field>
+            <field name="SEQUENCIACON" label="SEQUENCIACON" type="I" visible="true" useFooter="false">
+            </field>
+            <field name="EMAILENVIADO" label="EMAILENVIADO" type="S" visible="true" useFooter="false">
+            </field>
+            <field name="POSSUIANEXO" label="POSSUIANEXO" type="S" visible="true" useFooter="false">
+            </field>
+            <field name="AUDITORIAFINALIZADA" label="AUDITORIAFINALIZADA" type="S" visible="true" useFooter="false">
+            </field>
+            <field name="FATURAMENTOLIBERADO" label="FATURAMENTOLIBERADO" type="S" visible="true" useFooter="false">
+            </field>
+            <field name="SEQUENCIAFATURAMENTO" label="SEQUENCIAFATURAMENTO" type="I" visible="true" useFooter="false">
+            </field>
+            <field name="AD_AUDITORIAAUTOMATICA" label="AD_AUDITORIAAUTOMATICA" type="S" visible="true" useFooter="false">
+            </field>
+            <field name="VALORREF" label="VALORREF" type="F" visible="true" useFooter="false">
+            </field>
+            <field name="AD_CODASSESSOR" label="AD_CODASSESSOR" type="I" visible="true" useFooter="false">
+            </field>
+            <field name="LINK" label="LINK" type="S" visible="true" useFooter="false">
+            </field>
+            <field name="NUFILA" label="NUFILA" type="I" visible="true" useFooter="false">
+            </field>
+            <field name="NUNOTA" label="NUNOTA" type="I" visible="true" useFooter="false">
+            </field>
+            <field name="AD_RELGERADO" label="AD_RELGERADO" type="S" visible="true" useFooter="false">
+            </field>
+            <field name="AD_CODUSU" label="AD_CODUSU" type="I" visible="true" useFooter="false">
+            </field>
+            <field name="TAMANHOANEXO" label="TAMANHOANEXO" type="F" visible="true" useFooter="false">
+            </field>
+            <field name="PLANO" label="PLANO" type="I" visible="true" useFooter="false">
+            </field>
+            <field name="TIPO_CONTA" label="TIPO_CONTA" type="S" visible="true" useFooter="false">
+            </field>
+            <field name="NOMEOPERADORA" label="NOMEOPERADORA" type="S" visible="true" useFooter="false">
+            </field>
+            <field name="OPERADORACERTO" label="OPERADORACERTO" type="I" visible="true" useFooter="false">
+            </field>
+            <field name="NOMETITULARIDADE" label="NOMETITULARIDADE" type="S" visible="true" useFooter="false">
+            </field>
+            <field name="NOMEPRESTADOR" label="NOMEPRESTADOR" type="S" visible="true" useFooter="false">
+            </field>
+            <field name="CODCLIENTE" label="CODCLIENTE" type="I" visible="true" useFooter="false">
+            </field>
+            <field name="MATRIZCLIENTE" label="MATRIZCLIENTE" type="I" visible="true" useFooter="false">
+            </field>
+            <field name="NOMEMATRIZCLIENTE" label="NOMEMATRIZCLIENTE" type="S" visible="true" useFooter="false">
+            </field>
+            <field name="CONSULTOR" label="CONSULTOR" type="S" visible="true" useFooter="false">
+            </field>
+            <field name="CODCONSULTOR" label="CODCONSULTOR" type="I" visible="true" useFooter="false">
+            </field>
+            <field name="APURADO" label="APURADO" type="S" visible="true" useFooter="false">
+            </field>
+            <field name="IDINSTTAR" label="IDINSTTAR" type="I" visible="true" useFooter="false">
+            </field>
+          </metadata>
+          <value-expression >
+            <![CDATA[<button default>Abrir Auditoria</button>]]>
+          </value-expression>
+          <on-click-launcher  resource-id="br.com.sankhya.workflow.listatarefa">
+            <IDINSTPRN>$IDINSTPRN</IDINSTPRN>
+            <IDINSTTAR>$IDINSTTAR</IDINSTTAR>
+          </on-click-launcher>
+        </simple-value>
+      </container>
+      <container orientacao="V" tamanhoRelativo="20">
+        <simple-value id="svl_fsahan">
+          <args>
+            <arg id="NUAPURACAO" type="integer">
+            </arg>
+            <arg id="IDINSTPRN " type="integer">
+            </arg>
+            <arg id="IDINSTTAR" type="integer">
+            </arg>
+            <arg id="A_MATRIZ" type="integer">
+            </arg>
+            <arg id="CODCONTA" type="integer">
+            </arg>
+          </args>
+          <expression type="sql" data-source="MGEDS">
+            <![CDATA[SELECT
+	CODCONTA
+FROM 
+	BH_FACAPU
+WHERE
+	CODCONTA=:CODCONTA]]>
+          </expression>
+          <metadata>
+            <field name="CODCONTA" label="CODCONTA" type="S" visible="true" useFooter="false">
+            </field>
+          </metadata>
+          <value-expression >
+            <![CDATA[<button default>Abrir Cadastro de Contas</button>]]>
+          </value-expression>
+          <on-click-launcher  resource-id="br.com.sankhya.bh.conffaccon.cad.conta">
+            <CODCONTA>$CODCONTA</CODCONTA>
+          </on-click-launcher>
+        </simple-value>
+      </container>
+      <container orientacao="H" tamanhoRelativo="20">
+        <simple-value id="svl_fsahao">
+          <args>
+            <arg id="NUAPURACAO" type="integer">
+            </arg>
+            <arg id="IDINSTPRN " type="integer">
+            </arg>
+            <arg id="IDINSTTAR" type="integer">
+            </arg>
+            <arg id="A_MATRIZ" type="integer">
+            </arg>
+            <arg id="CODCONTA" type="integer">
+            </arg>
+          </args>
+          <value-expression >
+            <![CDATA[<button default>Abrir Contestação</button>]]>
+          </value-expression>
+          <on-click-launcher  resource-id="br.com.sankhya.menu.adicional.AD_CABCONTEST">
+            <IDCONTESTACAO/>
+          </on-click-launcher>
+        </simple-value>
+      </container>
+    </container>
+  </container>
+</level>
+<level id="lvl_a3q3afm" description="Detalhe">
+  <args >
+    <arg id="A_CODCONTA" type="integer" label="A_CODCONTA : Número Inteiro"/>
+    <arg id="A_MATRIZ" type="integer" label="A_MATRIZ : Número Inteiro"/>
+  </args>
+  <container orientacao="V" tamanhoRelativo="100">
+    <container orientacao="V" tamanhoRelativo="50">
+      <grid id="grd_a3q3afn" entityName="bhApuracao" multiplaSelecao="N" useNewGrid="S">
+        <title>
+          <![CDATA[Histórico da Conta :P_CODCONTA]]>
+        </title>
+        <expression type="sql" data-source="MGEDS">
+          <![CDATA[WITH
+A AS(
+SELECT 
+    (SELECT MAX(IDINSTTAR) FROM TWFITAR TAR WHERE TAR.IDINSTPRN = APU.IDINSTPRN  AND TAR.DHCONCLUSAO IS NULL AND TAR.IDELEMENTO='UserTask_08g3rj6') IDINSTTAR,
+    APU.REFERENCIA,
+    CON.LIMTRAT,
+    APU.NUMCONTRATO,
+    CON.CODCONTA,
+    CON.IDENTIFICADOR  IDENTIFICADOR,
+    APU.DTVENC,
+    CASE WHEN APU.CONFIRMADO = 'S' AND APU.IDINSTPRN IS NOT NULL THEN 'SIM' ELSE 'NÃO' END AS APURADO,
+    
+    NVL(APU.VALOR,0) VALOR,
+    NVL(CON.VLREST,0) VLREST,
+    NVL(CCT.VLRREF,0) VALORREF,
+		NVL(CCT.VLRREF-APU.VALOR,0) REDUCAO,
+    NVL(CON.TOLERANCIA,0) TOLERANCIA,
+    CASE WHEN APU.POSSUIANEXO='S' THEN 'SIM' ELSE 'NÃO' END AS POSSUIANEXO,
+    CASE WHEN APU.CONFIRMADO='S' THEN 'SIM' ELSE 'NÃO' END AS CONFIRMADO,
+    CASE WHEN APU.AUDITORIAFINALIZADA='S' THEN 'SIM' ELSE 'NÃO' END AS AUDITORIAFINALIZADA,
+   (SELECT CASE WHEN EMAILENVIADO='S' THEN 'Sim' ELSE 'Nâo' END FROM BH_FILMAIL WHERE NUFILA =APU.NUFILA) ENVIADO,
+    APU.FATURAMENTOLIBERADO,
+   
+    OPER.NOMEPARC AS NOMEOPERADORA,
+    CON.OPERADORA AS OPERADORACERTO,
+    TITU.NOMEPARC AS NOMETITULARIDADE,
+    PRES.NOMEPARC AS NOMEPRESTADOR,
+    CLI.CODPARC AS CODCLIENTE,
+    CLI.NOMEPARC AS CLIENTE2,
+    CTR.AD_CODASSESSOR,
+    TITU.CODPARCMATRIZ AS MATRIZCLIENTE,
+    MATRIZ.NOMEPARC AS NOMEMATRIZCLIENTE,
+    VEND.NOMEPARC AS CONSULTOR,
+    CTR.CODVEND AS CODCONSULTOR,
+    APU.NUAPURACAO,
+
+    CASE 
+        WHEN APU.FATURAMENTOLIBERADO = 'S' AND APU.IDINSTPRN IS NOT NULL THEN 'SIM' 
+        ELSE 'NÃO' 
+    END AS AUTORIZADO,
+    NVL((SELECT
+            CASE
+                WHEN AUDI.CONFIRMADA = 'N' OR AUDI.CONFIRMADA =' ' THEN 'NÃO'
+                ELSE 'SIM'
+            END AS AUDITADA
+        FROM
+            AD_FACCHKAUD AUDI 
+                LEFT JOIN BH_FACAPU APUR ON APUR.IDINSTPRN=AUDI.IDINSTPRN 
+        WHERE 
+            APUR.CODCONTA=APU.CODCONTA AND
+            APUR.REFERENCIA=APU.REFERENCIA AND 
+            ROWNUM <= 1),'NÃO') AUDITADA,
+    CAST(APU.LINK AS VARCHAR(900)) LINK
+    
+
+FROM 
+    BH_FACCON CON
+        INNER JOIN BH_FACCCT CCT ON CCT.CODCONTA = CON.CODCONTA
+        INNER JOIN BH_FACCTR CTR ON CTR.NUMCONTRATO = CCT.NUMCONTRATO
+        INNER JOIN BH_FACAPU APU ON APU.CODCONTA = CON.CODCONTA
+        INNER JOIN TGFPAR OPER ON OPER.CODPARC = CON.OPERADORA
+        INNER JOIN TGFPAR TITU ON TITU.CODPARC = CON.TITULARIDADE
+        LEFT JOIN TGFPAR PRES ON PRES.CODPARC = CON.PRESTADOR
+        INNER JOIN TGFPAR CLI ON CLI.CODPARC = CTR.CODPARC
+        LEFT JOIN TGFPAR MATRIZ ON MATRIZ.CODPARC = TITU.CODPARCMATRIZ
+        LEFT JOIN TGFPAR VEND ON VEND.CODPARC = CTR.CODVEND
+       
+WHERE
+
+(TO_CHAR(APU.REFERENCIA,'MM') <= TO_CHAR(:P_DTREF,'MM') OR :P_DTREF IS NULL) AND
+APU.CODCONTA=:A_CODCONTA
+),
+B AS (
+SELECT 
+    MAX(IDCONTESTACAO) IDCONTESTACAO,A.CODCONTA 
+FROM
+    A
+    
+        LEFT JOIN AD_CABCONTEST C ON C.CODCONTA=A.CODCONTA
+GROUP BY 
+    A.CODCONTA
+),
+C AS (SELECT B.IDCONTESTACAO,  CASE    
+        WHEN F.RESULTADO='A' THEN 'Em Andamento'
+        WHEN F.RESULTADO='I' THEN 'Improcedente'
+        WHEN F.RESULTADO='P' THEN 'Procedente'
+        ELSE 'Sem Resultado'
+    END AS CONTESTACAO,
+    B.CODCONTA
+FROM 
+    B 
+        INNER JOIN AD_FOLLOWUPCONTEST F ON F.IDCONTESTACAO=B.IDCONTESTACAO)
+
+SELECT 
+    A.*
+    ,NVL(C.CONTESTACAO,'Sem Contestação') CONTESTACAO
+FROM 
+    A
+        LEFT JOIN C ON C.CODCONTA=A.CODCONTA
+GROUP BY 
+    A.IDINSTTAR,
+    A.REFERENCIA,
+    A.LIMTRAT,
+    A.NUMCONTRATO,
+    A.CODCONTA,
+    A.IDENTIFICADOR,
+    A.DTVENC,
+    A.APURADO,
+    A.VALOR,
+    A.VLREST,
+    A.TOLERANCIA,
+    C.CONTESTACAO,
+    A.POSSUIANEXO,
+    A.CONFIRMADO,
+    A.AUDITORIAFINALIZADA,
+    A.ENVIADO,
+    A.FATURAMENTOLIBERADO,
+    A.NOMEOPERADORA,
+    A.OPERADORACERTO,
+    A.NOMETITULARIDADE,
+    A.NOMEPRESTADOR,
+    A.CODCLIENTE,
+    A.CLIENTE2,
+    A.AD_CODASSESSOR,
+    A.MATRIZCLIENTE,
+    A.NOMEMATRIZCLIENTE,
+    A.CONSULTOR,
+    A.NUAPURACAO,
+    A.CODCONSULTOR,
+    A.AUTORIZADO,
+    A.AUDITADA,
+    A.LINK,
+	   A.VALORREF,
+		A.REDUCAO
+ORDER BY 
+    A.NUMCONTRATO,A.LIMTRAT]]>
+        </expression>
+        <metadata>
+          <field name="IDINSTTAR" label="IDINSTTAR" type="I" visible="true" useFooter="false">
+          </field>
+          <field name="REFERENCIA" label="Referência" type="D" visible="true" useFooter="false" mask="MMM-YY">
+          </field>
+          <field name="LIMTRAT" label="LIMTRAT" type="I" visible="true" useFooter="false">
+          </field>
+          <field name="NUMCONTRATO" label="NUMCONTRATO" type="I" visible="true" useFooter="false">
+          </field>
+          <field name="CODCONTA" label="CODCONTA" type="I" visible="true" useFooter="false">
+          </field>
+          <field name="IDENTIFICADOR" label="Conta" type="S" visible="true" useFooter="false">
+          </field>
+          <field name="DTVENC" label="Dt. Vencimento" type="D" visible="true" useFooter="false">
+          </field>
+          <field name="APURADO" label="Apuração" type="S" visible="true" useFooter="false">
+          </field>
+          <field name="VALOR" label="Apurado" type="F" visible="true" useFooter="false" mask="R$ #.##0,00">
+          </field>
+          <field name="VLREST" label="Estimado" type="F" visible="true" useFooter="false" mask="R$ #.##0,00">
+          </field>
+          <field name="VALORREF" label="Base" type="F" visible="true" useFooter="false" mask="R$ #.##0,00">
+          </field>
+          <field name="REDUCAO" label="Reducao" type="F" visible="true" useFooter="false" mask="R$ #.##0,00">
+            <formatter  greaterThan="0">
+              <![CDATA[<span style="color:#0000FF; background-color:#FFFFFF; src:iconArrowUp">
+              <b>$VALUE</b>
+            </span>]]>
+          </formatter>
+          <formatter  lessThan="0">
+            <![CDATA[<span style="color:#FF0000; background-color:#FFFFFF; src:iconArrowDown">
+            <b>$VALUE</b>
+          </span>]]>
+        </formatter>
+      </field>
+      <field name="TOLERANCIA" label="TOLERANCIA" type="F" visible="true" useFooter="false">
+      </field>
+      <field name="POSSUIANEXO" label="POSSUIANEXO" type="S" visible="true" useFooter="false">
+      </field>
+      <field name="CONFIRMADO" label="CONFIRMADO" type="S" visible="true" useFooter="false">
+      </field>
+      <field name="AUDITORIAFINALIZADA" label="AUDITORIAFINALIZADA" type="S" visible="true" useFooter="false">
+      </field>
+      <field name="ENVIADO" label="ENVIADO" type="S" visible="true" useFooter="false">
+      </field>
+      <field name="FATURAMENTOLIBERADO" label="FATURAMENTOLIBERADO" type="S" visible="true" useFooter="false">
+      </field>
+      <field name="NOMEOPERADORA" label="Operadora" type="S" visible="true" useFooter="false">
+      </field>
+      <field name="OPERADORACERTO" label="OPERADORACERTO" type="I" visible="true" useFooter="false">
+      </field>
+      <field name="NOMETITULARIDADE" label="NOMETITULARIDADE" type="S" visible="true" useFooter="false">
+      </field>
+      <field name="NOMEPRESTADOR" label="NOMEPRESTADOR" type="S" visible="true" useFooter="false">
+      </field>
+      <field name="CODCLIENTE" label="CODCLIENTE" type="I" visible="true" useFooter="false">
+      </field>
+      <field name="CLIENTE2" label="CLIENTE2" type="S" visible="true" useFooter="false">
+      </field>
+      <field name="AD_CODASSESSOR" label="AD_CODASSESSOR" type="I" visible="true" useFooter="false">
+      </field>
+      <field name="MATRIZCLIENTE" label="MATRIZCLIENTE" type="I" visible="true" useFooter="false">
+      </field>
+      <field name="NOMEMATRIZCLIENTE" label="NOMEMATRIZCLIENTE" type="S" visible="true" useFooter="false">
+      </field>
+      <field name="CONSULTOR" label="CONSULTOR" type="S" visible="true" useFooter="false">
+      </field>
+      <field name="CODCONSULTOR" label="CODCONSULTOR" type="I" visible="true" useFooter="false">
+      </field>
+      <field name="NUAPURACAO" label="NUAPURACAO" type="I" visible="true" useFooter="false">
+      </field>
+      <field name="AUTORIZADO" label="AUTORIZADO" type="S" visible="true" useFooter="false">
+      </field>
+      <field name="AUDITADA" label="AUDITADA" type="S" visible="true" useFooter="false">
+      </field>
+      <field name="LINK" label="Download" type="S" visible="true" useFooter="false">
+      </field>
+      <field name="CONTESTACAO" label="CONTESTACAO" type="S" visible="true" useFooter="false">
+      </field>
+    </metadata>
+  </grid>
+</container>
+<container orientacao="V" tamanhoRelativo="50">
+  <grid id="grd_asc4um7" useNewGrid="S">
+    <expression type="sql" data-source="MGEDS">
+      <![CDATA[SELECT IDCONTESTACAO,CODCONTA,TO_CHAR(REFERENCIA,'MM/YYYY') AS REFERENCIA, VALORMES,VLRCONTEST,
+(SELECT 
+    VALORPROCEDENTE
+FROM 
+    AD_FOLLOWUPCONTEST A
+INNER JOIN (SELECT 
+    MAX(SEQUENCIA) SEQUENCIA
+FROM 
+    AD_FOLLOWUPCONTEST  
+WHERE 
+    IDCONTESTACAO=AD_CABCONTEST.IDCONTESTACAO
+GROUP BY 
+    IDCONTESTACAO )  F ON F.SEQUENCIA=A.SEQUENCIA
+WHERE IDCONTESTACAO=AD_CABCONTEST.IDCONTESTACAO) AS VLRPROCEDENTE,
+
+(SELECT 
+
+'<table border="0" cellpadding="0" cellspacing="0">
+      <tr>
+        <td align="right" valign="middle">
+          <a target="_top" href="'||linkBase||'mge/system.jsp#app/'||encodedString||'/'||pkEncoded||'">Abrir Contestação</a>
+        </td>
+      </tr>
+    </table>'
+
+FROM(
+SELECT 
+
+ utl_raw.cast_to_varchar2(utl_encode.base64_encode(utl_raw.cast_to_raw(A.idTela))) as encodedString,
+ utl_raw.cast_to_varchar2(utl_encode.base64_encode(utl_raw.cast_to_raw(A.jsonPk))) as pkEncoded,
+a.*
+
+FROM 
+(SELECT
+
+'{"IDCONTESTACAO":'||TO_CHAR(IDCONTESTACAO)||'}' AS jsonPk,
+'br.com.sankhya.menu.adicional.AD_CABCONTEST' AS idTela,
+'http://erp.facilitatelecom.com.br:8180/' AS linkBase,
+'Abrir Contestação' AS mensagem
+FROM DUAL)  A) B) as LINK
+
+FROM AD_CABCONTEST WHERE CODCONTA = :A_CODCONTA]]>
+  </expression>
+  <metadata>
+    <field name="IDCONTESTACAO" label="Nro Contestação" type="I" visible="true" useFooter="false">
+    </field>
+    <field name="CODCONTA" label="Cód. Conta" type="I" visible="true" useFooter="false">
+    </field>
+    <field name="REFERENCIA" label="Mês Referência" type="S" visible="true" useFooter="false">
+    </field>
+    <field name="VALORMES" label="Valor Apurado" type="F" visible="true" useFooter="false" mask="#.##0,00;-n">
+    </field>
+    <field name="VLRCONTEST" label="Valor Contestado" type="F" visible="true" useFooter="false" mask="#.##0,00;-n">
+    </field>
+    <field name="VLRPROCEDENTE" label="Valor Procedente" type="F" visible="true" useFooter="false" mask="#.##0,00;-n">
+    </field>
+    <field name="LINK" label="Link" type="S" visible="true" useFooter="false">
+    </field>
+  </metadata>
+</grid>
+</container>
+</container>
+</level>
+</gadget>

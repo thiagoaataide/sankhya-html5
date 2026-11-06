@@ -8,6 +8,10 @@
     var detailRequestSequence = 0;
     var attachmentMetadataSequence = 0;
     var attachmentMetadataLastFocus = null;
+    var attachmentMetadataRows = [];
+    var attachmentMetadataSelectedNu = "";
+    var attachmentMetadataBusy = false;
+    var attachmentColumnDragState = { columnId: "" };
     var actionRequestSequence = 0;
     var sortState = { key: "numcontrato", direction: 1 };
     var pageState = { page: 1, pageSize: 15 };
@@ -77,6 +81,21 @@
     var columnOrder = GRID_COLUMNS.map(function (column) {
         return column.id;
     });
+    var ATTACHMENT_COLUMNS = [
+        { id: "tipo", label: "Tipo" },
+        { id: "descricao", label: "Descrição" },
+        { id: "arquivo", label: "Arquivo" },
+        { id: "inclusao", label: "Inclusão" },
+        { id: "criadoEm", label: "Criado em" },
+        { id: "alteradoEm", label: "Alterado em" },
+        { id: "alteracao", label: "Alteração" },
+        { id: "visivel", label: "Visível" },
+        { id: "acesso", label: "Acesso" },
+        { id: "baixar", label: "Baixar" }
+    ];
+    var attachmentColumnOrder = ATTACHMENT_COLUMNS.map(function (column) {
+        return column.id;
+    });
     var columnDragState = { columnId: "" };
     var columnFilters = {};
     var facadeConfig = window.FACILITA_APURACAO_FACADE || {};
@@ -87,6 +106,94 @@
         minimumFractionDigits: 2,
         maximumFractionDigits: 2
     });
+
+    function sanitizeNuapuracao(value) {
+        var text = String(value == null ? "" : value).trim();
+        if (text.endsWith(".0")) {
+            text = text.slice(0, -2);
+        }
+        if (!/^[0-9]+$/.test(text) || text === "0") {
+            return "";
+        }
+        return text;
+    }
+
+    function decodeBase64Utf8(value) {
+        var normalized = String(value || "").replace(/-/g, "+").replace(/_/g, "/");
+        var remainder = normalized.length % 4;
+        if (remainder) {
+            normalized += "====".slice(remainder);
+        }
+        var binary = atob(normalized);
+        try {
+            return decodeURIComponent(Array.prototype.map.call(binary, function (char) {
+                return "%" + ("00" + char.charCodeAt(0).toString(16)).slice(-2);
+            }).join(""));
+        } catch (error) {
+            return binary;
+        }
+    }
+
+    function nuapuracaoFromLocation(targetWindow) {
+        var hash = "";
+        var search = "";
+        try {
+            hash = targetWindow.location.hash || "";
+            search = targetWindow.location.search || "";
+        } catch (error) {
+            return "";
+        }
+        var fromSearch = parseServerFilterParams(search).NUAPURACAO;
+        if (fromSearch) {
+            return fromSearch;
+        }
+        var match = hash.match(/#app\/[^/]+\/([A-Za-z0-9+/=_-]+)/);
+        if (!match) {
+            return "";
+        }
+        try {
+            var payload = JSON.parse(decodeBase64Utf8(match[1]));
+            if (payload && payload.NUAPURACAO != null) {
+                return payload.NUAPURACAO;
+            }
+        } catch (error) {
+            return "";
+        }
+        return "";
+    }
+
+    function readNuapuracaoFromDashboardHash() {
+        var windows = [];
+        var current = window;
+        var depth = 0;
+        while (current && depth < 4 && windows.indexOf(current) === -1) {
+            windows.push(current);
+            try {
+                if (!current.parent || current.parent === current) {
+                    break;
+                }
+                current = current.parent;
+            } catch (error) {
+                break;
+            }
+            depth += 1;
+        }
+        var index;
+        for (index = 0; index < windows.length; index += 1) {
+            var found = nuapuracaoFromLocation(windows[index]);
+            if (found) {
+                return found;
+            }
+        }
+        return "";
+    }
+
+    function resolveLaunchNuapuracao() {
+        return sanitizeNuapuracao(window.FACILITA_APURACAO_NUAPURACAO)
+            || sanitizeNuapuracao(readNuapuracaoFromDashboardHash());
+    }
+
+    var launchNuapuracao = resolveLaunchNuapuracao();
 
     document.addEventListener("DOMContentLoaded", init);
 
@@ -106,10 +213,12 @@
             syncSortWithSearchField();
             applySorting();
             applyFilters(true);
+            selectLaunchedApuracao();
             writeUserPreferencesToLocalStorage(buildUserPreferencesSnapshot());
-            setLoading(false);
-            if (hasActiveServerFilterSession() || hasPersistedServerFilterPrefs()) {
-                refreshGridFromServer();
+            if (launchNuapuracao || hasActiveServerFilterSession() || hasPersistedServerFilterPrefs()) {
+                refreshGridFromServer(launchNuapuracao);
+            } else {
+                setLoading(false);
             }
             loadServerPreferencesAsync();
         } catch (error) {
@@ -164,7 +273,7 @@
                 cfgDatafin: data.cfgDatafin || "",
                 cfgVlrref: parseNumber(data.cfgVlrref),
                 cfgVlrfixo: parseNumber(data.cfgVlrfixo),
-                acessoLogin: data.acessoLogin || data.nomeContaOperadora || "",
+                acessoLogin: data.acessoLogin || "",
                 acessoCpf: data.acessoCpf || "",
                 acessoEmail: data.acessoEmail || "",
                 acessoCnpj: data.acessoCnpj || "",
@@ -293,9 +402,13 @@
     function bindAttachmentMetadataDialog() {
         var dialog = document.getElementById("attachment-metadata-dialog");
         var close = document.getElementById("attachment-metadata-close");
+        var remove = document.getElementById("attachment-metadata-remove");
         var panel = dialog ? dialog.querySelector(".attachment-metadata__panel") : null;
         if (close) {
             close.addEventListener("click", closeAttachmentMetadataDialog);
+        }
+        if (remove) {
+            remove.addEventListener("click", removeSelectedAttachment);
         }
         if (dialog && panel) {
             dialog.addEventListener("click", function (event) {
@@ -717,14 +830,20 @@
         var selectedField = field ? field.value : "T";
         var previousPage = pageState.page;
 
-        filteredRows = rows.filter(function (row) {
-            if (query && !searchableValues(row, selectedField).some(function (value) {
-                return matchesSearchToken(value, query);
-            })) {
-                return false;
-            }
-            return rowMatchesColumnFilters(row);
-        });
+        if (launchNuapuracao) {
+            filteredRows = rows.filter(function (row) {
+                return row.nuapuracao === launchNuapuracao;
+            });
+        } else {
+            filteredRows = rows.filter(function (row) {
+                if (query && !searchableValues(row, selectedField).some(function (value) {
+                    return matchesSearchToken(value, query);
+                })) {
+                    return false;
+                }
+                return rowMatchesColumnFilters(row);
+            });
+        }
         if (preservePage) {
             pageState.page = previousPage;
             clampPage();
@@ -850,6 +969,9 @@
                 sortKey: sortState.key,
                 sortDirection: sortState.direction,
                 manualColumnSort: manualColumnSort
+            },
+            attachmentGrid: {
+                order: normalizeAttachmentColumnOrder(attachmentColumnOrder)
             }
         };
     }
@@ -1046,6 +1168,10 @@
             if (prefs.client.page) {
                 pageState.page = Math.max(1, parseInt(prefs.client.page, 10) || 1);
             }
+        }
+        if (prefs.attachmentGrid && typeof prefs.attachmentGrid === "object") {
+            applyAttachmentGridPreferences(prefs.attachmentGrid);
+            refreshOpenAttachmentMetadataTable();
         }
     }
 
@@ -1275,6 +1401,32 @@
         }
     }
 
+    function withLaunchNuapuracao(search) {
+        if (!launchNuapuracao) {
+            return search || "";
+        }
+        var params = parseServerFilterParams(search);
+        params.NUAPURACAO = launchNuapuracao;
+        return "?" + Object.keys(params).map(function (key) {
+            return encodeURIComponent(key) + "=" + encodeURIComponent(params[key] == null ? "" : params[key]);
+        }).join("&");
+    }
+
+    function selectLaunchedApuracao() {
+        if (!launchNuapuracao) {
+            return;
+        }
+        var match = null;
+        rows.forEach(function (row) {
+            if (row.nuapuracao === launchNuapuracao) {
+                match = row;
+            }
+        });
+        if (match) {
+            selectRow(match);
+        }
+    }
+
     function getServerFilterQuery() {
         var fromLocation = parseServerFilterParams(window.location.search);
         if (fromLocation.P_REFERENCIA || fromLocation.P_SOMENTE_PENDENTES || fromLocation.P_POSSUI_ANEXO) {
@@ -1406,6 +1558,7 @@
     }
 
     function reloadWithServerFilters(values) {
+        launchNuapuracao = "";
         var resolved = resolveServerFilterValues(values || {});
         var snapshot = buildUserPreferencesSnapshot(resolved);
         writeUserPreferencesToLocalStorage(snapshot);
@@ -1480,7 +1633,7 @@
         saveClientFilterState();
         setLoading(true);
         var base = window.FACILITA_APURACAO_BASE || "";
-        var url = base + "/dados.jsp" + getServerFilterQuery();
+        var url = base + "/dados.jsp" + withLaunchNuapuracao(getServerFilterQuery());
         fetch(url, { credentials: "same-origin", headers: { Accept: "text/html" } })
             .then(function (response) {
                 if (!response.ok) {
@@ -1950,7 +2103,7 @@
             + encodeURIComponent(serviceName) + "&outputType=json";
     }
 
-    function chamarServicoMge(serviceName, requestBody) {
+    function chamarServicoMge(serviceName, requestBody, fallbackMessage) {
         return fetch(window.location.origin + "/mge/service.sbr?serviceName=" + serviceName + "&outputType=json", {
             method: "POST",
             credentials: "same-origin",
@@ -1973,7 +2126,7 @@
                 var status = String(data.status);
                 if (status !== "1" && status !== "2") {
                     throw createFacadeError(
-                        data.statusMessage || "Não foi possível associar o anexo.",
+                        data.statusMessage || fallbackMessage || "Não foi possível associar o anexo.",
                         "INTEGRATION"
                     );
                 }
@@ -2319,7 +2472,12 @@
             return;
         }
         var sequence = ++attachmentMetadataSequence;
+        attachmentMetadataRows = [];
+        attachmentMetadataSelectedNu = "";
+        setAttachmentMetadataBusy(false);
         attachmentMetadataLastFocus = document.activeElement;
+        setAttachmentMetadataFeedback("", false);
+        syncAttachmentRemoveButton();
         if (subtitle) {
             subtitle.textContent = "Apuração " + selectedDetail.nuapuracao;
         }
@@ -2352,8 +2510,8 @@
                 if (!container || container.getAttribute("data-valid-key") === "N") {
                     throw new Error("Consulta de anexos inválida.");
                 }
-                var anexos = readAnexoRows(container);
-                renderAttachmentMetadataTable(anexos, body);
+                attachmentMetadataRows = readAnexoRows(container);
+                renderAttachmentMetadataTable(attachmentMetadataRows, body);
                 if (close) {
                     close.focus();
                 }
@@ -2380,6 +2538,7 @@
 
     function closeAttachmentMetadataDialog() {
         attachmentMetadataSequence += 1;
+        setAttachmentMetadataBusy(false);
         var dialog = document.getElementById("attachment-metadata-dialog");
         if (dialog) {
             dialog.hidden = true;
@@ -2406,7 +2565,9 @@
                 tipoApres: element.getAttribute("data-tipo-apres") || "",
                 tipoAcesso: element.getAttribute("data-tipo-acesso") || "",
                 tipoApresOpcao: element.getAttribute("data-tipo-apres-opcao") || "",
-                tipoAcessoOpcao: element.getAttribute("data-tipo-acesso-opcao") || ""
+                tipoAcessoOpcao: element.getAttribute("data-tipo-acesso-opcao") || "",
+                chaveArquivo: element.getAttribute("data-chave-arquivo") || "",
+                link: element.getAttribute("data-link") || ""
             };
         });
     }
@@ -2420,15 +2581,462 @@
         return nom || cod || "—";
     }
 
+    function attachmentColumnById(id) {
+        var found = null;
+        ATTACHMENT_COLUMNS.forEach(function (column) {
+            if (column.id === id) {
+                found = column;
+            }
+        });
+        return found;
+    }
+
+    function normalizeAttachmentColumnOrder(order) {
+        var seen = {};
+        var normalized = [];
+        (order || []).forEach(function (id) {
+            if (!attachmentColumnById(id) || seen[id]) {
+                return;
+            }
+            seen[id] = true;
+            normalized.push(id);
+        });
+        ATTACHMENT_COLUMNS.forEach(function (column) {
+            if (!seen[column.id]) {
+                normalized.push(column.id);
+            }
+        });
+        return normalized;
+    }
+
+    function orderedAttachmentColumns() {
+        return normalizeAttachmentColumnOrder(attachmentColumnOrder).map(function (id) {
+            return attachmentColumnById(id);
+        }).filter(function (column) {
+            return !!column;
+        });
+    }
+
+    function applyAttachmentGridPreferences(grid) {
+        if (!grid || !grid.order || !grid.order.length) {
+            return;
+        }
+        attachmentColumnOrder = normalizeAttachmentColumnOrder(grid.order);
+    }
+
+    function refreshOpenAttachmentMetadataTable() {
+        var dialog = document.getElementById("attachment-metadata-dialog");
+        var body = document.getElementById("attachment-metadata-body");
+        if (!dialog || dialog.hidden || !body || !attachmentMetadataRows.length) {
+            return;
+        }
+        renderAttachmentMetadataTable(attachmentMetadataRows, body);
+    }
+
+    function focusAttachmentColumnHandle(columnId) {
+        var body = document.getElementById("attachment-metadata-body");
+        if (!body) {
+            return;
+        }
+        var handle = body.querySelector("th[data-attachment-column=\"" + columnId + "\"] .col-drag-handle");
+        if (handle) {
+            handle.focus();
+        }
+    }
+
+    function moveAttachmentColumn(dragId, targetId) {
+        var order = normalizeAttachmentColumnOrder(attachmentColumnOrder);
+        var fromIndex = order.indexOf(dragId);
+        var targetIndex = order.indexOf(targetId);
+        if (fromIndex < 0 || targetIndex < 0 || fromIndex === targetIndex) {
+            return;
+        }
+        var moved = order.splice(fromIndex, 1)[0];
+        order.splice(targetIndex, 0, moved);
+        attachmentColumnOrder = order;
+        saveUserPreferences();
+        var body = document.getElementById("attachment-metadata-body");
+        if (body) {
+            renderAttachmentMetadataTable(attachmentMetadataRows, body);
+            focusAttachmentColumnHandle(dragId);
+        }
+    }
+
+    function clearAttachmentColumnDropTargets() {
+        Array.prototype.forEach.call(
+            document.querySelectorAll("#attachment-metadata-body th.is-column-drop-target"),
+            function (cell) {
+                cell.classList.remove("is-column-drop-target");
+            }
+        );
+    }
+
+    function buildAttachmentHeaderCell(column) {
+        var th = document.createElement("th");
+        var handle = document.createElement("button");
+        var label = document.createElement("span");
+        th.scope = "col";
+        th.setAttribute("data-attachment-column", column.id);
+        handle.type = "button";
+        handle.className = "col-drag-handle";
+        handle.draggable = true;
+        handle.disabled = attachmentMetadataBusy;
+        handle.setAttribute("aria-label", "Reordenar coluna " + column.label);
+        handle.title = "Arraste para reordenar. Com o foco, use as setas esquerda e direita.";
+        handle.textContent = "\u2261";
+        handle.addEventListener("dragstart", function (event) {
+            if (attachmentMetadataBusy) {
+                event.preventDefault();
+                return;
+            }
+            attachmentColumnDragState.columnId = column.id;
+            event.dataTransfer.setData("text/plain", column.id);
+            event.dataTransfer.effectAllowed = "move";
+            th.classList.add("is-column-dragging");
+        });
+        handle.addEventListener("dragend", function () {
+            attachmentColumnDragState.columnId = "";
+            th.classList.remove("is-column-dragging");
+            clearAttachmentColumnDropTargets();
+        });
+        handle.addEventListener("keydown", function (event) {
+            if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") {
+                return;
+            }
+            event.preventDefault();
+            var order = normalizeAttachmentColumnOrder(attachmentColumnOrder);
+            var index = order.indexOf(column.id);
+            var nextIndex = index + (event.key === "ArrowRight" ? 1 : -1);
+            if (index < 0 || nextIndex < 0 || nextIndex >= order.length) {
+                return;
+            }
+            moveAttachmentColumn(column.id, order[nextIndex]);
+        });
+        th.addEventListener("dragover", function (event) {
+            if (!attachmentColumnDragState.columnId || attachmentColumnDragState.columnId === column.id) {
+                return;
+            }
+            event.preventDefault();
+            event.dataTransfer.dropEffect = "move";
+            th.classList.add("is-column-drop-target");
+        });
+        th.addEventListener("dragleave", function (event) {
+            if (event.currentTarget.contains(event.relatedTarget)) {
+                return;
+            }
+            th.classList.remove("is-column-drop-target");
+        });
+        th.addEventListener("drop", function (event) {
+            event.preventDefault();
+            th.classList.remove("is-column-drop-target");
+            var dragId = event.dataTransfer.getData("text/plain") || attachmentColumnDragState.columnId;
+            if (!dragId || dragId === column.id) {
+                return;
+            }
+            moveAttachmentColumn(dragId, column.id);
+        });
+        label.textContent = column.label;
+        th.appendChild(handle);
+        th.appendChild(label);
+        return th;
+    }
+
+    function attachmentCellText(anexo, columnId) {
+        if (columnId === "tipo") {
+            return anexo.tipo || "—";
+        }
+        if (columnId === "descricao") {
+            return anexo.descricao || "—";
+        }
+        if (columnId === "arquivo") {
+            return anexo.nomeArquivo || "—";
+        }
+        if (columnId === "inclusao") {
+            return formatAnexoUsuario(anexo.codusuInc, anexo.nomeUsuInc);
+        }
+        if (columnId === "criadoEm") {
+            return anexo.dhcad || "—";
+        }
+        if (columnId === "alteradoEm") {
+            return anexo.dhalter || "—";
+        }
+        if (columnId === "alteracao") {
+            return formatAnexoUsuario(anexo.codusuAlt, anexo.nomeUsuAlt);
+        }
+        if (columnId === "visivel") {
+            return anexo.tipoApresOpcao || anexo.tipoApres || "—";
+        }
+        if (columnId === "acesso") {
+            return anexo.tipoAcessoOpcao || anexo.tipoAcesso || "—";
+        }
+        return "—";
+    }
+
+    function isHttpLink(value) {
+        return /^https?:\/\//i.test(String(value || "").trim());
+    }
+
+    function anexoCanDownload(anexo) {
+        return !!(anexo && (anexo.chaveArquivo || isHttpLink(anexo.link)));
+    }
+
+    function selectAttachmentMetadataRow(nuattach) {
+        attachmentMetadataSelectedNu = nuattach || "";
+        var body = document.getElementById("attachment-metadata-body");
+        if (body) {
+            Array.prototype.forEach.call(body.querySelectorAll("tbody tr"), function (row) {
+                var selected = row.getAttribute("data-nuattach") === attachmentMetadataSelectedNu;
+                row.classList.toggle("is-selected", selected);
+                row.setAttribute("aria-selected", selected ? "true" : "false");
+            });
+        }
+        syncAttachmentRemoveButton();
+    }
+
+    function syncAttachmentRemoveButton() {
+        var remove = document.getElementById("attachment-metadata-remove");
+        if (!remove) {
+            return;
+        }
+        remove.disabled = attachmentMetadataBusy || !attachmentMetadataSelectedNu;
+    }
+
+    function setAttachmentMetadataFeedback(message, isError) {
+        var feedback = document.getElementById("attachment-metadata-feedback");
+        if (!feedback) {
+            return;
+        }
+        feedback.textContent = message || "";
+        feedback.hidden = !message;
+        feedback.className = "attachment-metadata__feedback" + (isError ? " is-error" : "");
+        feedback.setAttribute("aria-live", isError ? "assertive" : "polite");
+        if (isError) {
+            feedback.focus();
+        }
+    }
+
+    function setAttachmentMetadataBusy(busy) {
+        attachmentMetadataBusy = busy;
+        var dialog = document.getElementById("attachment-metadata-dialog");
+        var panel = dialog ? dialog.querySelector(".attachment-metadata__panel") : null;
+        if (panel) {
+            panel.setAttribute("aria-busy", busy ? "true" : "false");
+        }
+        syncAttachmentRemoveButton();
+        var body = document.getElementById("attachment-metadata-body");
+        if (!body) {
+            return;
+        }
+        Array.prototype.forEach.call(body.querySelectorAll(".attachment-metadata-table__download, .col-drag-handle"), function (control) {
+            if (busy) {
+                control.disabled = true;
+                return;
+            }
+            if (control.classList.contains("col-drag-handle")) {
+                control.disabled = false;
+                return;
+            }
+            var nuattach = control.getAttribute("data-nuattach");
+            var anexo = null;
+            attachmentMetadataRows.forEach(function (item) {
+                if (item.nuattach === nuattach) {
+                    anexo = item;
+                }
+            });
+            control.disabled = !anexoCanDownload(anexo);
+        });
+    }
+
+    function attachmentServiceParams(anexo) {
+        return {
+            nuAttach: anexo.nuattach,
+            pkEntity: String(selectedDetail.nuapuracao),
+            nameEntity: "bhApuracao",
+            nameAttach: anexo.nomeArquivo || "",
+            keyAttach: anexo.chaveArquivo || ""
+        };
+    }
+
+    function readAnexoSessionKey(data) {
+        var responseBody = data && data.responseBody;
+        var chave = responseBody && responseBody.chave;
+        if (!chave) {
+            return "";
+        }
+        if (typeof chave === "string") {
+            return chave.trim();
+        }
+        var valor = chave.valor || chave["@valor"] || "";
+        if (valor && typeof valor === "object") {
+            valor = valor.$ || "";
+        }
+        return String(valor || "").trim();
+    }
+
+    function syncPossuiAnexoLocal(valor) {
+        var nuapuracao = selectedDetail && selectedDetail.nuapuracao;
+        if (!nuapuracao) {
+            return;
+        }
+        if (selectedDetail) {
+            selectedDetail.possuiAnexo = valor;
+        }
+        if (selectedRow && selectedRow.nuapuracao === nuapuracao) {
+            selectedRow.possuiAnexo = valor;
+        }
+        rows.forEach(function (row) {
+            if (row.nuapuracao === nuapuracao) {
+                row.possuiAnexo = valor;
+            }
+        });
+        render();
+        setDetailActions(selectedDetail);
+    }
+
+    function gravarPossuiAnexo(valor) {
+        if (!selectedDetail || !selectedDetail.nuapuracao) {
+            return Promise.resolve();
+        }
+        return crudSaveRecord(
+            { POSSUIANEXO: valor },
+            "bhApuracao",
+            { NUAPURACAO: selectedDetail.nuapuracao }
+        ).catch(function (error) {
+            console.warn("[facilita-apuracao] indicador de anexo não atualizado", error);
+        });
+    }
+
+    function downloadAttachment(anexo) {
+        if (!anexo || attachmentMetadataBusy || !selectedDetail) {
+            return;
+        }
+        if (isHttpLink(anexo.link) && !anexo.chaveArquivo) {
+            window.open(anexo.link, "_blank", "noopener");
+            return;
+        }
+        if (!anexo.chaveArquivo) {
+            setAttachmentMetadataFeedback("Este anexo não tem arquivo para baixar.", true);
+            return;
+        }
+        var popup = window.open("", "_blank");
+        if (!popup) {
+            setAttachmentMetadataFeedback("O navegador bloqueou a nova aba. Permita pop-ups deste site e baixe de novo.", true);
+            return;
+        }
+        var sequence = attachmentMetadataSequence;
+        setAttachmentMetadataBusy(true);
+        setAttachmentMetadataFeedback("Preparando download…", false);
+        chamarServicoMge("AnexoSistemaSP.baixar", {
+            paramsDown: attachmentServiceParams(anexo)
+        }, "Não foi possível baixar o anexo.").then(function (data) {
+            if (sequence !== attachmentMetadataSequence) {
+                popup.close();
+                return;
+            }
+            var chave = readAnexoSessionKey(data);
+            if (!chave) {
+                throw createFacadeError("O serviço não devolveu o arquivo para download. Tente de novo.", "INTEGRATION");
+            }
+            popup.location.href = window.location.origin
+                + "/mge/visualizadorArquivos.mge?chaveArquivo="
+                + encodeURIComponent(chave)
+                + "&forcarDownload=S";
+            try {
+                popup.opener = null;
+            } catch (ignore) {
+                /* a aba já navegou */
+            }
+            setAttachmentMetadataFeedback("", false);
+        }).catch(function (error) {
+            popup.close();
+            if (sequence !== attachmentMetadataSequence) {
+                return;
+            }
+            setAttachmentMetadataFeedback(
+                (error && error.message) || "Não foi possível baixar o anexo. Tente de novo.",
+                true
+            );
+        }).finally(function () {
+            if (sequence === attachmentMetadataSequence) {
+                setAttachmentMetadataBusy(false);
+            }
+        });
+    }
+
+    function removeSelectedAttachment() {
+        if (attachmentMetadataBusy || !selectedDetail) {
+            return;
+        }
+        var anexo = null;
+        attachmentMetadataRows.forEach(function (item) {
+            if (item.nuattach === attachmentMetadataSelectedNu) {
+                anexo = item;
+            }
+        });
+        if (!anexo) {
+            setAttachmentMetadataFeedback("Selecione o anexo que deseja remover.", true);
+            return;
+        }
+        var nome = anexo.nomeArquivo || anexo.descricao || anexo.nuattach;
+        if (!window.confirm("Remover o anexo " + nome + "? O arquivo deixa de ficar disponível nesta apuração.")) {
+            return;
+        }
+        var sequence = attachmentMetadataSequence;
+        setAttachmentMetadataBusy(true);
+        setAttachmentMetadataFeedback("Removendo anexo…", false);
+        chamarServicoMge("AnexoSistemaSP.excluir", {
+            paramsDelete: attachmentServiceParams(anexo)
+        }, "Não foi possível remover o anexo.").then(function () {
+            if (sequence !== attachmentMetadataSequence) {
+                return;
+            }
+            attachmentMetadataRows = attachmentMetadataRows.filter(function (item) {
+                return item.nuattach !== anexo.nuattach;
+            });
+            attachmentMetadataSelectedNu = attachmentMetadataRows.length ? attachmentMetadataRows[0].nuattach : "";
+            var body = document.getElementById("attachment-metadata-body");
+            if (body) {
+                renderAttachmentMetadataTable(attachmentMetadataRows, body);
+            }
+            if (!attachmentMetadataRows.length) {
+                syncPossuiAnexoLocal("N");
+                setAttachmentMetadataFeedback("Anexo removido. Esta apuração não tem mais arquivos.", false);
+                return gravarPossuiAnexo("N");
+            }
+            setAttachmentMetadataFeedback("Anexo removido.", false);
+        }).catch(function (error) {
+            if (sequence !== attachmentMetadataSequence) {
+                return;
+            }
+            setAttachmentMetadataFeedback(
+                (error && error.message) || "Não foi possível remover o anexo. Tente de novo.",
+                true
+            );
+        }).finally(function () {
+            if (sequence === attachmentMetadataSequence) {
+                setAttachmentMetadataBusy(false);
+            }
+        });
+    }
+
     function renderAttachmentMetadataTable(anexos, body) {
         body.textContent = "";
         if (!anexos.length) {
+            attachmentMetadataSelectedNu = "";
+            syncAttachmentRemoveButton();
             var empty = document.createElement("p");
             empty.className = "attachment-metadata__status";
             empty.textContent = "Nenhum anexo encontrado para esta apuração.";
             body.appendChild(empty);
             return;
         }
+        var stillSelected = anexos.some(function (anexo) {
+            return anexo.nuattach === attachmentMetadataSelectedNu;
+        });
+        if (!stillSelected) {
+            attachmentMetadataSelectedNu = anexos[0].nuattach;
+        }
+        var columns = orderedAttachmentColumns();
         var table = document.createElement("table");
         table.className = "attachment-metadata-table";
         var caption = document.createElement("caption");
@@ -2437,33 +3045,58 @@
         table.appendChild(caption);
         var thead = document.createElement("thead");
         var headRow = document.createElement("tr");
-        ["Tipo", "Descrição", "Arquivo", "Inclusão", "Criado em", "Alterado em", "Alteração", "Visível", "Acesso"].forEach(function (label) {
-            var th = document.createElement("th");
-            th.scope = "col";
-            th.textContent = label;
-            headRow.appendChild(th);
+        columns.forEach(function (column) {
+            headRow.appendChild(buildAttachmentHeaderCell(column));
         });
         thead.appendChild(headRow);
         table.appendChild(thead);
         var tbody = document.createElement("tbody");
         anexos.forEach(function (anexo) {
             var tr = document.createElement("tr");
-            [
-                anexo.tipo || "—",
-                anexo.descricao || "—",
-                anexo.nomeArquivo || "—",
-                formatAnexoUsuario(anexo.codusuInc, anexo.nomeUsuInc),
-                anexo.dhcad || "—",
-                anexo.dhalter || "—",
-                formatAnexoUsuario(anexo.codusuAlt, anexo.nomeUsuAlt),
-                anexo.tipoApresOpcao || anexo.tipoApres || "—",
-                anexo.tipoAcessoOpcao || anexo.tipoAcesso || "—"
-            ].forEach(function (value, index) {
+            var selected = anexo.nuattach === attachmentMetadataSelectedNu;
+            tr.tabIndex = 0;
+            tr.setAttribute("data-nuattach", anexo.nuattach);
+            tr.setAttribute("aria-selected", selected ? "true" : "false");
+            tr.className = selected ? "is-selected" : "";
+            tr.addEventListener("click", function (event) {
+                if (event.target && event.target.closest && event.target.closest("button")) {
+                    return;
+                }
+                selectAttachmentMetadataRow(anexo.nuattach);
+            });
+            tr.addEventListener("keydown", function (event) {
+                if (event.key === "Enter" || event.key === " ") {
+                    if (event.target !== tr) {
+                        return;
+                    }
+                    event.preventDefault();
+                    selectAttachmentMetadataRow(anexo.nuattach);
+                }
+            });
+            columns.forEach(function (column) {
                 var td = document.createElement("td");
-                td.textContent = value;
-                if (index === 2) {
-                    td.className = "attachment-metadata-table__file";
-                    td.title = anexo.nomeArquivo || "";
+                if (column.id === "baixar") {
+                    var button = document.createElement("button");
+                    td.className = "attachment-metadata-table__action";
+                    button.type = "button";
+                    button.className = "btn btn--quiet attachment-metadata-table__download";
+                    button.textContent = "Baixar";
+                    button.setAttribute("data-nuattach", anexo.nuattach);
+                    button.disabled = attachmentMetadataBusy || !anexoCanDownload(anexo);
+                    if (!anexoCanDownload(anexo)) {
+                        button.title = "Este anexo não tem arquivo para baixar.";
+                    }
+                    button.addEventListener("click", function () {
+                        selectAttachmentMetadataRow(anexo.nuattach);
+                        downloadAttachment(anexo);
+                    });
+                    td.appendChild(button);
+                } else {
+                    td.textContent = attachmentCellText(anexo, column.id);
+                    if (column.id === "arquivo") {
+                        td.className = "attachment-metadata-table__file";
+                        td.title = anexo.nomeArquivo || "";
+                    }
                 }
                 tr.appendChild(td);
             });
@@ -2471,6 +3104,7 @@
         });
         table.appendChild(tbody);
         body.appendChild(table);
+        syncAttachmentRemoveButton();
     }
 
     function openTask(row) {

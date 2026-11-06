@@ -15,6 +15,7 @@
 <snk:load>
     <jsp:include page="dados.jsp"/>
     <script>window.FACILITA_APURACAO_BASE = "${BASE_FOLDER}";</script>
+    <script>window.FACILITA_APURACAO_NUAPURACAO = "<c:out value='${NUAPURACAO}' default=''/>";</script>
     <script>window.FACILITA_APURACAO_USER = { codusu: "<c:out value='${CODUSU_LOG}' default='0'/>" };</script>
     <script>window.FACILITA_APURACAO_PREFS = {
         rootEntity: "AD_APURACAOCONF",
@@ -258,7 +259,9 @@
         <div id="attachment-metadata-body" class="attachment-metadata__body" tabindex="-1">
             <p class="attachment-metadata__status" id="attachment-metadata-status">Carregando…</p>
         </div>
+        <p id="attachment-metadata-feedback" class="attachment-metadata__feedback" role="status" aria-live="polite" tabindex="-1" hidden></p>
         <div class="attachment-metadata__footer">
+            <button type="button" class="btn btn--danger" id="attachment-metadata-remove" disabled>Remover anexo</button>
             <button type="button" class="btn btn--accent" id="attachment-metadata-close">Fechar</button>
         </div>
     </div>

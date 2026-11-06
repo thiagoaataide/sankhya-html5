@@ -24,7 +24,9 @@
            ANX.TIPOAPRES,
            ANX.TIPOACESSO,
            NVL(OP_APRES.OPCAO, ANX.TIPOAPRES) AS TIPOAPRES_OPCAO,
-           NVL(OP_ACESSO.OPCAO, ANX.TIPOACESSO) AS TIPOACESSO_OPCAO
+           NVL(OP_ACESSO.OPCAO, ANX.TIPOACESSO) AS TIPOACESSO_OPCAO,
+           ANX.CHAVEARQUIVO,
+           ANX.LINK
       FROM TSIANX ANX
       LEFT JOIN TSIUSU UINC ON UINC.CODUSU = ANX.CODUSU
       LEFT JOIN TSIUSU UALT ON UALT.CODUSU = ANX.CODUSUALT
@@ -65,6 +67,8 @@
              data-tipo-apres="<c:out value='${row.TIPOAPRES}'/>"
              data-tipo-acesso="<c:out value='${row.TIPOACESSO}'/>"
              data-tipo-apres-opcao="<c:out value='${row.TIPOAPRES_OPCAO}'/>"
-             data-tipo-acesso-opcao="<c:out value='${row.TIPOACESSO_OPCAO}'/>"></div>
+             data-tipo-acesso-opcao="<c:out value='${row.TIPOACESSO_OPCAO}'/>"
+             data-chave-arquivo="<c:out value='${row.CHAVEARQUIVO}'/>"
+             data-link="<c:out value='${row.LINK}'/>"></div>
     </c:forEach>
 </div>
