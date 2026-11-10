@@ -105,7 +105,7 @@ Abre modal somente leitura; não altera altura do aside.
 | Filtro | `NOMEINSTANCIA = 'bhApuracao'`, `PKREGISTRO = '{NUAPURACAO}_bhApuracao'` |
 | Ordem | `DHCAD DESC` |
 | Usuários | `TSIUSU` em `CODUSU` e `CODUSUALT` |
-| Abrir arquivo | **Ver anexo** → `visualizadorArquivos.facilita` (inalterado) |
+| Abrir arquivo | **Ver anexo** abre `/facilitatelecom/visualizadorArquivos.facilita?nuApuracao=` numa aba nova. O servlet acrescenta `mgeSession` e `chaveArquivo` e o PDF.js mostra o documento. **Baixar**, no modal, continua com `forcarDownload=S` em `/mge/visualizadorArquivos.mge`. |
 
 Colunas no modal: tipo (`BH_TIPO`), descrição, arquivo, inclusão/alteração
 (código + nome), datas, **Visível** e **Acesso** via `TDDOPC.OPCAO` (join por
@@ -123,8 +123,8 @@ O selo "Powered by" com `css/logo-get.png` fica fixo no canto inferior direito. 
 ## Fora deste caminho
 
 - Sem Service Provider novo no GET_FACILITA.
-- Ver anexo continua em `/facilitatelecom/visualizadorArquivos.facilita?nuApuracao=`.
-- Consulta da grade continua na JSP do gadget.
+- Ver anexo abre `/facilitatelecom/visualizadorArquivos.facilita?nuApuracao=` numa aba nova e o PDF aparece no visualizador. O download fica só no modal Dados anexo.
+- Consulta da grade continua na JSP do gadget. O deep link `NUAPURACAO` (prompt ou hash) segue filtrando a grade.
 
 ## Preferências por usuário
 
@@ -136,8 +136,8 @@ Documento JSON (`version`, `savedAt`, `server`, `client`, `grid`) gravado em:
 | Cache | `localStorage` — `facilita-apuracao-faturas:user-prefs:v1:{CODUSU}` |
 
 Leitura na abertura: `prefs_payload.jsp` (`snk:query` por `CODUSU` logado).
-Upsert: insert sem `key` (só `CONF`); update com `key.CODUSU`. `DHALTER`/`CODUSU`
-por expressão no dicionário.
+Upsert: insert sem `key` (só `CONF`) quando a linha não existe; update com `key.CODUSU` quando existe. Se o insert esbarrar em `PK_AD_APURACAOCONF`, o gadget repete como update. `DHALTER`/`CODUSU`
+por expressão no dicionário. A linha conta como existente mesmo com `CONF` nulo.
 
 **Precedência:** filtros `P_*` na toolbar (e `sessionStorage` da sessão) **sempre
 prevalecem** sobre o bloco `server` do JSON/`CONF`. O remoto restaura sobretudo
@@ -162,3 +162,15 @@ consulta vigente.
 Correções e refinamentos incrementais após a apresentação ficam na feature
 `.specs/features/facilita-apuracao-faturas-ajustes/` (`spec.md`, `tasks.md`).
 Cada pedido do solicitante entra como task **A*n*** nesse `tasks.md`.
+
+## Aprendizado — Ver anexo vs baixar (2026-11-07, homologado)
+
+| O quê | Contrato |
+| --- | --- |
+| **Ver anexo** | Só `window.open("/facilitatelecom/visualizadorArquivos.facilita?nuApuracao={NUAPURACAO}", "_blank")`. O servlet Facilita injeta `mgeSession` e `chaveArquivo` (`ZIPANEXO…`) e o PDF.js renderiza na aba (mesmo padrão do legado). |
+| **Baixar** (modal Dados anexo) | `AnexoSistemaSP.baixar` → chave de sessão → `/mge/visualizadorArquivos.mge?chaveArquivo=…&forcarDownload=S` (dispara download; não serve como substituto do Ver anexo). |
+| **Evitar no Ver anexo** | Não abrir direto `/mge/visualizadorArquivos.mge` com `hidemail=S` (caixa Salvar) nem reutilizar o fluxo do botão Baixar. |
+| **Preferências (`AD_APURACAOCONF`)** | Ao abrir nova aba, `visibilitychange` gravava com insert e gerava `ORA-00001` em `PK_AD_APURACAOCONF`. Mitigação: pausa de flush ~4 s no clique do Ver anexo; upsert com fallback insert→update; `prefs_payload.jsp` marca `exists` pela linha, não pelo CLOB legível. |
+| **Deep link `NUAPURACAO`** | Inalterado (prompt/`#app/…`); não misturar com o fluxo do visualizador. |
+
+Referência UAT: apuração `195212725` — visualizador com boleto em tela; republicar `apuracao-faturas.zip` antes de testar.

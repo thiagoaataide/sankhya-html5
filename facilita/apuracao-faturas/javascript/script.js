@@ -26,8 +26,11 @@
     var pendingClientPreferences = null;
     var prefsRowExists = false;
     var prefsSaveTimer = null;
+    var prefsSaveQueue = Promise.resolve();
+    var prefsFlushPausedUntil = 0;
     var prefsServerSyncEnabled = false;
     var prefsDirtyForServer = false;
+    var PREFS_ROW_KEY_PREFIX = "facilita-apuracao-faturas:prefs-row:v1:";
     var USER_PREFS_MAX_BYTES = 131072;
     var PREFS_SAVE_DEBOUNCE_MS = 1500;
     var GRID_COLUMNS = [
@@ -302,9 +305,10 @@
             saveUserPreferences(undefined, { syncServer: true, immediate: true });
         });
         document.addEventListener("visibilitychange", function () {
-            if (document.visibilityState === "hidden") {
-                saveUserPreferences(undefined, { syncServer: true, immediate: true });
+            if (document.visibilityState !== "hidden" || Date.now() < prefsFlushPausedUntil) {
+                return;
             }
+            saveUserPreferences(undefined, { syncServer: true, immediate: true });
         });
         var columnPicker = document.getElementById("column-picker");
         if (columnPicker) {
@@ -1133,7 +1137,13 @@
                 syncUsuarioFromServerPayload(payload);
                 prefsServerSyncEnabled = true;
                 var parsed = parseServerPrefsPayload(payload);
-                prefsRowExists = parsed.exists;
+                var codusu = getUsuarioKey();
+                if (parsed.exists) {
+                    prefsRowExists = true;
+                    rememberPrefsRow(codusu);
+                } else {
+                    prefsRowExists = rememberedPrefsRow(codusu);
+                }
                 if (!parsed.prefs) {
                     if (!prefsRowExists && readUserPreferencesFromStorage()) {
                         prefsDirtyForServer = true;
@@ -1148,6 +1158,9 @@
             })
             .catch(function (error) {
                 prefsServerSyncEnabled = true;
+                if (!prefsRowExists) {
+                    prefsRowExists = rememberedPrefsRow(getUsuarioKey());
+                }
                 console.warn("[facilita-apuracao] preferências do servidor indisponíveis", error);
             });
     }
@@ -1225,6 +1238,88 @@
         });
     }
 
+    function prefsRowStorageKey(codusu) {
+        return PREFS_ROW_KEY_PREFIX + String(codusu);
+    }
+
+    function rememberPrefsRow(codusu) {
+        if (codusu == null) {
+            return;
+        }
+        try {
+            window.sessionStorage.setItem(prefsRowStorageKey(codusu), "1");
+        } catch (error) {
+            /* o navegador pode bloquear sessionStorage no iframe */
+        }
+    }
+
+    function forgetPrefsRow(codusu) {
+        if (codusu == null) {
+            return;
+        }
+        try {
+            window.sessionStorage.removeItem(prefsRowStorageKey(codusu));
+        } catch (error) {
+            /* ignore */
+        }
+    }
+
+    function rememberedPrefsRow(codusu) {
+        if (codusu == null) {
+            return false;
+        }
+        try {
+            return window.sessionStorage.getItem(prefsRowStorageKey(codusu)) === "1";
+        } catch (error) {
+            return false;
+        }
+    }
+
+    function prefsErrorMessage(error) {
+        return String(error && error.message || "");
+    }
+
+    function isPrefsDuplicateError(error) {
+        var message = prefsErrorMessage(error);
+        return message.indexOf("ORA-00001") !== -1
+            || message.indexOf("PK_AD_APURACAOCONF") !== -1
+            || /restri[cç][aã]o exclusiva/i.test(message)
+            || /unique constraint/i.test(message)
+            || /duplicate key/i.test(message)
+            || /PRIMARY KEY/i.test(message);
+    }
+
+    function isMissingPrefsRowError(error) {
+        var message = prefsErrorMessage(error);
+        return /n[aã]o encontrad/i.test(message)
+            || /n[aã]o localizad/i.test(message)
+            || /registro inexistente/i.test(message);
+    }
+
+    function savePreferencesRecord(fields, rootEntity, codusu) {
+        if (!prefsRowExists && rememberedPrefsRow(codusu)) {
+            prefsRowExists = true;
+        }
+        if (prefsRowExists) {
+            return crudSaveRecord(fields, rootEntity, { CODUSU: codusu }).catch(function (error) {
+                if (!isMissingPrefsRowError(error)) {
+                    throw error;
+                }
+                prefsRowExists = false;
+                forgetPrefsRow(codusu);
+                return crudSaveRecord(fields, rootEntity, null);
+            });
+        }
+        return crudSaveRecord(fields, rootEntity, null).catch(function (error) {
+            if (!isPrefsDuplicateError(error)) {
+                throw error;
+            }
+            prefsRowExists = true;
+            rememberPrefsRow(codusu);
+            return crudSaveRecord(fields, rootEntity, { CODUSU: codusu });
+        });
+    }
+
     function scheduleServerPreferencesSave(snapshot) {
         if (prefsSaveTimer) {
             window.clearTimeout(prefsSaveTimer);
@@ -1253,6 +1348,10 @@
             prefsSaveTimer = null;
         }
         var snapshot = options && options.snapshot ? options.snapshot : buildUserPreferencesSnapshot();
+        if (Date.now() < prefsFlushPausedUntil) {
+            scheduleServerPreferencesSave(snapshot);
+            return Promise.resolve();
+        }
         if (!snapshot.savedAt) {
             snapshot.savedAt = new Date().toISOString();
         }
@@ -1264,14 +1363,18 @@
         }
         var fields = {};
         fields[confField] = confText;
-        var pk = prefsRowExists ? { CODUSU: codusu } : null;
-        return crudSaveRecord(fields, cfg.rootEntity, pk).then(function () {
-            prefsRowExists = true;
-            prefsDirtyForServer = false;
-            writeUserPreferencesToLocalStorage(snapshot);
-        }).catch(function (error) {
-            console.warn("[facilita-apuracao] falha ao gravar AD_APURACAOCONF", error);
-        });
+        var run = function () {
+            return savePreferencesRecord(fields, cfg.rootEntity, codusu).then(function () {
+                prefsRowExists = true;
+                prefsDirtyForServer = false;
+                rememberPrefsRow(codusu);
+                writeUserPreferencesToLocalStorage(snapshot);
+            }).catch(function (error) {
+                console.warn("[facilita-apuracao] falha ao gravar AD_APURACAOCONF", error);
+            });
+        };
+        prefsSaveQueue = prefsSaveQueue.then(run, run);
+        return prefsSaveQueue;
     }
 
     function saveUserPreferences(serverOverride, options) {
@@ -2451,13 +2554,43 @@
         });
     }
 
+    function fetchAnexoRows(nuapuracao) {
+        var base = window.FACILITA_APURACAO_BASE || "";
+        var url = base + "/anexos_payload.jsp?nuapuracao=" + encodeURIComponent(nuapuracao);
+        return fetch(url, { credentials: "same-origin", headers: { Accept: "text/html" } })
+            .then(function (response) {
+                if (!response.ok) {
+                    throw new Error("HTTP " + response.status);
+                }
+                return response.text();
+            })
+            .then(function (html) {
+                if (html && /^\s*</.test(html) && html.toLowerCase().indexOf("<html") >= 0 && html.indexOf("anexos-container") < 0) {
+                    throw createFacadeError(
+                        "Resposta não é JSON (sessão expirada ou serviço indisponível).",
+                        "INTEGRATION"
+                    );
+                }
+                var documentResponse = new DOMParser().parseFromString(html, "text/html");
+                var container = documentResponse.getElementById("anexos-container");
+                if (!container || container.getAttribute("data-valid-key") === "N") {
+                    throw new Error("Consulta de anexos inválida.");
+                }
+                return readAnexoRows(container);
+            });
+    }
+
     function viewSelectedAttachments() {
         if (!selectedDetail || selectedDetail.possuiAnexo !== "S" || !selectedDetail.nuapuracao) {
             return;
         }
+        prefsFlushPausedUntil = Date.now() + 4000;
         var url = "/facilitatelecom/visualizadorArquivos.facilita?nuApuracao="
             + encodeURIComponent(selectedDetail.nuapuracao);
-        window.open(url, "_blank");
+        var popup = window.open(url, "_blank");
+        if (!popup) {
+            showErrorDialog("O navegador bloqueou a nova aba. Permita pop-ups deste site e tente de novo.");
+        }
     }
 
     function openAttachmentMetadataDialog() {
@@ -2486,31 +2619,12 @@
         if (close) {
             close.focus();
         }
-        var base = window.FACILITA_APURACAO_BASE || "";
-        var url = base + "/anexos_payload.jsp?nuapuracao=" + encodeURIComponent(selectedDetail.nuapuracao);
-        fetch(url, { credentials: "same-origin", headers: { Accept: "text/html" } })
-            .then(function (response) {
-                if (!response.ok) {
-                    throw new Error("HTTP " + response.status);
-                }
-                return response.text();
-            })
-            .then(function (html) {
+        fetchAnexoRows(selectedDetail.nuapuracao)
+            .then(function (anexos) {
                 if (sequence !== attachmentMetadataSequence) {
                     return;
                 }
-                if (html && /^\s*</.test(html) && html.toLowerCase().indexOf("<html") >= 0 && html.indexOf("anexos-container") < 0) {
-                    throw createFacadeError(
-                        "Resposta não é JSON (sessão expirada ou serviço indisponível).",
-                        "INTEGRATION"
-                    );
-                }
-                var documentResponse = new DOMParser().parseFromString(html, "text/html");
-                var container = documentResponse.getElementById("anexos-container");
-                if (!container || container.getAttribute("data-valid-key") === "N") {
-                    throw new Error("Consulta de anexos inválida.");
-                }
-                attachmentMetadataRows = readAnexoRows(container);
+                attachmentMetadataRows = anexos;
                 renderAttachmentMetadataTable(attachmentMetadataRows, body);
                 if (close) {
                     close.focus();
@@ -2847,10 +2961,10 @@
         });
     }
 
-    function attachmentServiceParams(anexo) {
+    function attachmentServiceParams(anexo, nuapuracao) {
         return {
             nuAttach: anexo.nuattach,
-            pkEntity: String(selectedDetail.nuapuracao),
+            pkEntity: String(nuapuracao || (selectedDetail && selectedDetail.nuapuracao) || ""),
             nameEntity: "bhApuracao",
             nameAttach: anexo.nomeArquivo || "",
             keyAttach: anexo.chaveArquivo || ""
