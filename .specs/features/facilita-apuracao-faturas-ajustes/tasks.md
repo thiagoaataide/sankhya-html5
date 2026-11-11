@@ -390,6 +390,57 @@ A17 → A18 → A19 → A20 → A21   (preferências AD_APURACAOCONF — ver des
 
 **Status:** ⏳ Pendente
 
+### A22: Redimensionar colunas e manter a grade do usuário
+
+**What:** Arrastar a borda do cabeçalho para definir a largura de cada coluna. Largura, ordem, pin e colunas marcadas em **Colunas** permanecem no JSON do usuário (`grid.widths`, `grid.order`, `grid.columns`, `grid.pinned`) em `localStorage` e `AD_APURACAOCONF`.
+**Where:** `facilita/apuracao-faturas/javascript/script.js`, `facilita/apuracao-faturas/css/style.css`
+**Depends on:** A19
+**Pedido em:** 2026-11-10
+
+**Done when:**
+
+- [x] A borda direita do cabeçalho redimensiona a coluna (ponteiro e setas do teclado).
+- [x] `grid.widths` entra no snapshot gravado por usuário.
+- [x] Ao reabrir, ordem, colunas marcadas e larguras voltam do cache e do `AD_APURACAOCONF`.
+- [ ] UAT no Om: redimensionar, reordenar, ocultar colunas, sair e entrar de novo com o mesmo usuário.
+
+**Tests:** `node --check` + manual — UAT
+**Status:** 🔄 Em execução (UAT pendente)
+
+### A23: Rascunho da ficha independente do anexo
+
+**What:** Enviar anexo não recarrega vencimento e valor. O rascunho permanece até salvar ou até trocar de apuração, com confirmação. Comportamento registrado em `memory.md` (§ Estado da ficha).
+**Where:** `facilita/apuracao-faturas/javascript/script.js`, `tdb_partida.jsp`, `css/style.css`
+**Depends on:** None
+**Pedido em:** 2026-11-10
+
+**Done when:**
+
+- [x] Sucesso do anexo não chama `reloadAfterAction` nem reescreve os campos editáveis.
+- [x] Trocar de apuração com rascunho pede confirmação; a mesma linha não recarrega o detalhe.
+- [x] Regra descrita em `memory.md`.
+- [ ] UAT: preencher valor, enviar anexo, conferir que o valor permanece; trocar de linha e confirmar o descarte.
+
+**Tests:** `node --check` + manual — UAT
+**Status:** 🔄 Em execução (UAT pendente)
+
+### A24: Vencimento editável em qualquer estado
+
+**What:** O vencimento em Dados editáveis pode ser alterado e salvo com a apuração em qualquer estado (Pendente, Confirmada, auditoria finalizada, faturamento liberado, e-mail enviado).
+**Where:** `facilita/apuracao-faturas/javascript/script.js`, `memory.md` (§ Editar valor e vencimento)
+**Depends on:** A9
+**Pedido em:** 2026-11-10
+
+**Done when:**
+
+- [x] O campo de vencimento permanece habilitado depois de carregar o detalhe, sem `min`/`max` e sem depender de `confirmado`, `auditoriafinalizada` ou `faturamentoliberado`.
+- [x] `updateSelectedApuracao` envia `DTVENC` sempre que a data está preenchida, sem consultar o estado.
+- [x] Regra descrita em `memory.md`.
+- [ ] UAT: alterar o vencimento de uma apuração confirmada, de uma com auditoria finalizada e de uma com faturamento liberado.
+
+**Tests:** `node --check` + manual — UAT
+**Status:** 🔄 Em execução (UAT pendente)
+
 ## Registro de sessão
 
 | Data | Nota |
@@ -410,3 +461,4 @@ A17 → A18 → A19 → A20 → A21   (preferências AD_APURACAOCONF — ver des
 | 2026-10-19 | A15: `sankhya-parameter-drawer-guard.js` — desativa hover da `VCompactBar` no parent. |
 | 2026-10-19 | A16: desenho preferências + tasks A17–A21. |
 | 2026-10-19 | A17: dicionário `AD_APURACAOCONF` (CODUSU, DHALTER, CONF) modelado no Om. |
+| 2026-11-10 | A24: vencimento editável em qualquer estado da apuração. |

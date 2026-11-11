@@ -4,7 +4,11 @@
     var rows = [];
     var filteredRows = [];
     var selectedRow = null;
+    var activeCell = null;
+    var gridPointer = null;
     var selectedDetail = null;
+    var editBaseline = null;
+    var pendingRowSelection = null;
     var detailRequestSequence = 0;
     var attachmentMetadataSequence = 0;
     var attachmentMetadataLastFocus = null;
@@ -40,6 +44,8 @@
         { id: "nomeCliente", label: "Nome Cliente", kind: "text", visible: true },
         { id: "razaoCliente", label: "Razão Cliente", kind: "text", visible: true },
         { id: "nomeContaOperadora", label: "Nome da conta na operadora", kind: "text", visible: true },
+        { id: "consultor", label: "Consultor de Autorização", kind: "text", visible: true },
+        { id: "consultorRel", label: "Consultor de Relacionamento", kind: "text", visible: true },
         { id: "referencia", label: "Referência", kind: "date", visible: true },
         { id: "dtvenc", label: "Vencimento", kind: "date", visible: true },
         { id: "valor", label: "Valor", kind: "money", visible: true },
@@ -84,6 +90,9 @@
     var columnOrder = GRID_COLUMNS.map(function (column) {
         return column.id;
     });
+    var columnWidths = {};
+    var COLUMN_WIDTH_MIN = 72;
+    var COLUMN_WIDTH_MAX = 720;
     var ATTACHMENT_COLUMNS = [
         { id: "tipo", label: "Tipo" },
         { id: "descricao", label: "Descrição" },
@@ -100,6 +109,7 @@
         return column.id;
     });
     var columnDragState = { columnId: "" };
+    var columnResizeState = null;
     var columnFilters = {};
     var facadeConfig = window.FACILITA_APURACAO_FACADE || {};
     var facadeModuleName = facadeConfig.moduleName || "0bace5b4-6687-4507-9093-a80a82a03bcb";
@@ -271,6 +281,8 @@
                 nomeContaOperadora: data.nomeContaOperadora || "",
                 cgcTitular: data.cgcTitular || "",
                 apelidoVend: data.apelidoVend || "",
+                consultor: data.consultor || "",
+                consultorRel: data.consultorRel || "",
                 vlrest: parseNumber(data.vlrest),
                 cfgDataini: data.cfgDataini || "",
                 cfgDatafin: data.cfgDatafin || "",
@@ -391,7 +403,27 @@
                 event.preventDefault();
                 updateSelectedApuracao();
             });
+            ["edit-dtvenc", "edit-valor"].forEach(function (id) {
+                var input = document.getElementById(id);
+                if (!input) {
+                    return;
+                }
+                input.addEventListener("input", syncEditDraftHint);
+                input.addEventListener("change", syncEditDraftHint);
+                if (id === "edit-valor") {
+                    input.addEventListener("paste", pasteValor);
+                }
+            });
         }
+        bindDiscardDraftDialog();
+        bindGridCellCopy();
+        window.addEventListener("beforeunload", function (event) {
+            if (!editDraftDirty()) {
+                return;
+            }
+            event.preventDefault();
+            event.returnValue = "";
+        });
         if (uploadButton) {
             uploadButton.addEventListener("click", uploadSelectedAttachment);
         }
@@ -569,6 +601,7 @@
             th.appendChild(sortButton);
             th.appendChild(pinButton);
             th.appendChild(columnMenu);
+            th.appendChild(buildColumnResizeHandle(th, column));
             head.appendChild(th);
 
             checkbox.type = "checkbox";
@@ -712,8 +745,337 @@
         columnOrder.splice(targetIndex, 0, dragId);
         manualColumnSort = true;
         saveColumnPreferences();
+        syncColumnPickerOrder();
         placePinnedColumn();
         render();
+    }
+
+    function clampColumnWidth(width) {
+        var value = Math.round(Number(width));
+        if (!isFinite(value)) {
+            return 0;
+        }
+        if (value < COLUMN_WIDTH_MIN) {
+            return COLUMN_WIDTH_MIN;
+        }
+        if (value > COLUMN_WIDTH_MAX) {
+            return COLUMN_WIDTH_MAX;
+        }
+        return value;
+    }
+
+    function normalizeColumnWidths(raw) {
+        var widths = {};
+        if (!raw || typeof raw !== "object") {
+            return widths;
+        }
+        Object.keys(raw).forEach(function (id) {
+            if (!columnById(id)) {
+                return;
+            }
+            var value = clampColumnWidth(raw[id]);
+            if (value) {
+                widths[id] = value;
+            }
+        });
+        return widths;
+    }
+
+    function syncColumnPickerOrder() {
+        var list = document.getElementById("column-picker-list");
+        if (!list) {
+            return;
+        }
+        var empty = document.getElementById("column-picker-empty");
+        orderedColumns().forEach(function (column) {
+            var input = list.querySelector('input[data-column="' + column.id + '"]');
+            var label = input ? input.parentNode : null;
+            if (!label) {
+                return;
+            }
+            if (empty) {
+                list.insertBefore(label, empty);
+            } else {
+                list.appendChild(label);
+            }
+        });
+    }
+
+    function columnHeaderCell(id) {
+        var head = document.getElementById("grid-apuracoes-head");
+        return head ? head.querySelector('[data-column="' + id + '"]') : null;
+    }
+
+    function ensureColumnGroup(table) {
+        var group = table.querySelector("colgroup");
+        if (!group) {
+            group = document.createElement("colgroup");
+            table.insertBefore(group, table.firstChild);
+        }
+        return group;
+    }
+
+    function visibleColumnIds() {
+        var ids = [];
+        orderedColumns().forEach(function (column) {
+            if (visibleColumns[column.id]) {
+                ids.push(column.id);
+            }
+        });
+        return ids;
+    }
+
+    function sumVisibleWidths() {
+        var total = 0;
+        visibleColumnIds().forEach(function (id) {
+            if (columnWidths[id]) {
+                total += columnWidths[id];
+            }
+        });
+        return total;
+    }
+
+    function writeColumnWidth(id, px) {
+        var table = document.getElementById("grid-apuracoes");
+        if (!table || !px) {
+            return;
+        }
+        var col = table.querySelector('col[data-column="' + id + '"]');
+        if (col) {
+            col.style.width = px + "px";
+        }
+        var header = columnHeaderCell(id);
+        if (header) {
+            header.style.width = px + "px";
+            header.style.minWidth = px + "px";
+            header.style.maxWidth = px + "px";
+        }
+    }
+
+    function applyLockedTableWidth() {
+        var table = document.getElementById("grid-apuracoes");
+        if (!table) {
+            return;
+        }
+        var ids = visibleColumnIds();
+        var locked = ids.length > 0 && ids.every(function (id) {
+            return !!columnWidths[id];
+        });
+        if (!locked) {
+            table.classList.remove("has-column-widths");
+            table.style.width = "";
+            table.style.minWidth = "";
+            return;
+        }
+        var total = sumVisibleWidths();
+        table.classList.add("has-column-widths");
+        table.style.width = total + "px";
+        table.style.minWidth = total + "px";
+    }
+
+    function syncColumnGroup() {
+        var table = document.getElementById("grid-apuracoes");
+        if (!table) {
+            return;
+        }
+        var group = ensureColumnGroup(table);
+        var ids = visibleColumnIds();
+        var existing = {};
+        Array.prototype.forEach.call(group.querySelectorAll("col"), function (col) {
+            existing[col.getAttribute("data-column")] = col;
+        });
+        ids.forEach(function (id) {
+            var col = existing[id];
+            if (!col) {
+                col = document.createElement("col");
+                col.setAttribute("data-column", id);
+            }
+            if (columnWidths[id]) {
+                col.style.width = columnWidths[id] + "px";
+            }
+            group.appendChild(col);
+            delete existing[id];
+        });
+        Object.keys(existing).forEach(function (id) {
+            group.removeChild(existing[id]);
+        });
+        ids.forEach(function (id) {
+            writeColumnWidth(id, columnWidths[id]);
+        });
+    }
+
+    function applyColumnWidths() {
+        syncColumnGroup();
+        applyLockedTableWidth();
+        syncResizeHandleValues();
+    }
+
+    function ensureColumnWidths() {
+        if (columnResizeState) {
+            return;
+        }
+        var missing = [];
+        visibleColumnIds().forEach(function (id) {
+            if (!columnWidths[id]) {
+                missing.push(id);
+            }
+        });
+        if (!missing.length) {
+            applyColumnWidths();
+            return;
+        }
+        var table = document.getElementById("grid-apuracoes");
+        if (table) {
+            table.classList.remove("has-column-widths");
+            table.style.width = "";
+            table.style.minWidth = "";
+        }
+        missing.forEach(function (id) {
+            var cell = columnHeaderCell(id);
+            var measured = cell ? cell.offsetWidth : 0;
+            if (measured >= COLUMN_WIDTH_MIN) {
+                columnWidths[id] = clampColumnWidth(measured);
+            }
+        });
+        applyColumnWidths();
+    }
+
+    function syncResizeHandleValues() {
+        Array.prototype.forEach.call(document.querySelectorAll(".col-resize-handle"), function (handle) {
+            var id = handle.getAttribute("data-column");
+            var width = columnWidths[id];
+            handle.setAttribute("aria-valuemin", String(COLUMN_WIDTH_MIN));
+            handle.setAttribute("aria-valuemax", String(COLUMN_WIDTH_MAX));
+            if (width) {
+                handle.setAttribute("aria-valuenow", String(width));
+                handle.setAttribute("aria-valuetext", width + " pixels");
+            } else {
+                handle.removeAttribute("aria-valuenow");
+                handle.removeAttribute("aria-valuetext");
+            }
+        });
+    }
+
+    function setColumnWidth(id, width) {
+        var next = clampColumnWidth(width);
+        if (!next || !columnById(id)) {
+            return;
+        }
+        columnWidths[id] = next;
+        writeColumnWidth(id, next);
+        applyLockedTableWidth();
+        var handle = document.querySelector('#grid-apuracoes-head .col-resize-handle[data-column="' + id + '"]');
+        if (handle) {
+            handle.setAttribute("aria-valuenow", String(next));
+            handle.setAttribute("aria-valuetext", next + " pixels");
+        }
+        applyPinnedColumn();
+    }
+
+    function autoFitColumn(id) {
+        var max = COLUMN_WIDTH_MIN;
+        var probe = document.createElement("span");
+        probe.style.position = "absolute";
+        probe.style.visibility = "hidden";
+        probe.style.whiteSpace = "nowrap";
+        probe.style.font = "inherit";
+        document.body.appendChild(probe);
+        var cells = document.querySelectorAll('#grid-apuracoes [data-column="' + id + '"]');
+        Array.prototype.forEach.call(cells, function (cell) {
+            if (cell.hidden) {
+                return;
+            }
+            probe.textContent = cell.textContent || "";
+            var needed = probe.offsetWidth + 36;
+            if (needed > max) {
+                max = needed;
+            }
+        });
+        document.body.removeChild(probe);
+        setColumnWidth(id, max);
+        saveColumnPreferences();
+    }
+
+    function finishColumnResize() {
+        Array.prototype.forEach.call(document.querySelectorAll("#grid-apuracoes-head th.is-resizing"), function (cell) {
+            cell.classList.remove("is-resizing");
+        });
+        document.body.classList.remove("is-column-resizing");
+        if (!columnResizeState) {
+            return;
+        }
+        var moved = columnResizeState.moved;
+        columnResizeState = null;
+        if (moved) {
+            saveColumnPreferences();
+        }
+    }
+
+    function buildColumnResizeHandle(th, column) {
+        var handle = document.createElement("div");
+        handle.className = "col-resize-handle";
+        handle.tabIndex = 0;
+        handle.setAttribute("data-column", column.id);
+        handle.setAttribute("role", "separator");
+        handle.setAttribute("aria-label", "Redimensionar coluna " + column.label);
+        handle.setAttribute("aria-orientation", "vertical");
+        handle.setAttribute("aria-valuemin", String(COLUMN_WIDTH_MIN));
+        handle.setAttribute("aria-valuemax", String(COLUMN_WIDTH_MAX));
+        handle.title = "Arraste para ajustar a largura. Duplo clique ajusta ao conteúdo.";
+        handle.addEventListener("pointerdown", function (event) {
+            if (event.button !== 0 || columnResizeState) {
+                return;
+            }
+            event.preventDefault();
+            event.stopPropagation();
+            ensureColumnWidths();
+            var startWidth = columnWidths[column.id] || th.offsetWidth;
+            columnResizeState = {
+                id: column.id,
+                pointerId: event.pointerId,
+                startX: event.clientX,
+                startWidth: startWidth,
+                moved: false
+            };
+            th.classList.add("is-resizing");
+            document.body.classList.add("is-column-resizing");
+            if (handle.setPointerCapture) {
+                handle.setPointerCapture(event.pointerId);
+            }
+        });
+        handle.addEventListener("pointermove", function (event) {
+            if (!columnResizeState || columnResizeState.id !== column.id || columnResizeState.pointerId !== event.pointerId) {
+                return;
+            }
+            var next = columnResizeState.startWidth + (event.clientX - columnResizeState.startX);
+            if (next !== columnWidths[column.id]) {
+                columnResizeState.moved = true;
+            }
+            setColumnWidth(column.id, next);
+        });
+        handle.addEventListener("pointerup", finishColumnResize);
+        handle.addEventListener("pointercancel", finishColumnResize);
+        handle.addEventListener("dblclick", function (event) {
+            event.preventDefault();
+            event.stopPropagation();
+            autoFitColumn(column.id);
+        });
+        handle.addEventListener("keydown", function (event) {
+            var delta = 0;
+            if (event.key === "ArrowRight") {
+                delta = 8;
+            } else if (event.key === "ArrowLeft") {
+                delta = -8;
+            }
+            if (!delta) {
+                return;
+            }
+            event.preventDefault();
+            ensureColumnWidths();
+            setColumnWidth(column.id, (columnWidths[column.id] || th.offsetWidth) + delta);
+            saveColumnPreferences();
+        });
+        return handle;
     }
 
     function clearColumnDropTargets() {
@@ -970,6 +1332,7 @@
                 columns: visibleColumns,
                 pinned: pinnedColumns.slice(),
                 order: normalizeColumnOrder(columnOrder),
+                widths: normalizeColumnWidths(columnWidths),
                 sortKey: sortState.key,
                 sortDirection: sortState.direction,
                 manualColumnSort: manualColumnSort
@@ -1475,6 +1838,9 @@
         if (grid.order && grid.order.length) {
             columnOrder = normalizeColumnOrder(grid.order);
         }
+        if (grid.widths && typeof grid.widths === "object") {
+            columnWidths = normalizeColumnWidths(grid.widths);
+        }
         if (grid.pageSize) {
             pageState.pageSize = parsePageSize(String(grid.pageSize));
         }
@@ -1869,6 +2235,8 @@
             NOMEOPERADORA: [row.nomeOperadora],
             NOMECONTAOPERADORA: [row.nomeContaOperadora],
             APELIDOVEND: [row.apelidoVend],
+            CONSULTOR: [row.consultor],
+            CONSULTORREL: [row.consultorRel],
             CLIENTE: [row.cliente],
             OPERADORA: [row.operadora],
             TITULARIDADE: [row.titularidade],
@@ -1887,6 +2255,8 @@
             row.numcontrato,
             row.nomeCliente,
             row.razaoCliente,
+            row.consultor,
+            row.consultorRel,
             row.nunota,
             numberFormat.format(row.valor)
         ].concat(dateSearchVariants(row.dtvenc)).concat(dateSearchVariants(row.referencia));
@@ -1895,7 +2265,6 @@
     function render() {
         renderGrid();
         renderCounters();
-        updateSummary();
         updateSortIndicators();
     }
 
@@ -1915,17 +2284,38 @@
             tr.setAttribute("aria-label", "Selecionar apuração " + row.nuapuracao);
             tr.setAttribute("aria-selected", String(isSelected(row)));
             tr.className = isSelected(row) ? "is-selected" : "";
-            tr.addEventListener("click", function () {
-                selectRow(row);
+            tr.addEventListener("mousedown", function (event) {
+                if (event.button !== 0) {
+                    return;
+                }
+                gridPointer = { x: event.clientX, y: event.clientY };
+            });
+            tr.addEventListener("click", function (event) {
+                if (gridClickDragged(event)) {
+                    return;
+                }
+                var columnCell = gridCellFromEvent(event);
+                if (columnCell) {
+                    activeCell = {
+                        nuapuracao: row.nuapuracao,
+                        columnId: columnCell.getAttribute("data-column")
+                    };
+                }
+                if (selectedRow && selectedRow.nuapuracao === row.nuapuracao) {
+                    markActiveCell();
+                    return;
+                }
+                requestSelectRow(row);
             });
             tr.addEventListener("dblclick", function () {
-                selectRow(row);
-                openTask(row);
+                requestSelectRow(row, function () {
+                    openTask(row);
+                });
             });
             tr.addEventListener("keydown", function (event) {
                 if (event.key === "Enter" || event.key === " ") {
                     event.preventDefault();
-                    selectRow(row);
+                    requestSelectRow(row);
                 }
             });
 
@@ -1935,11 +2325,18 @@
                     cell.className = "num";
                 }
                 cell.setAttribute("data-column", column.id);
+                if (activeCell && activeCell.nuapuracao === row.nuapuracao && activeCell.columnId === column.id) {
+                    cell.classList.add("is-active");
+                }
+                if (cell.textContent && cell.textContent !== "—") {
+                    cell.title = cell.textContent;
+                }
                 tr.appendChild(cell);
             });
             body.appendChild(tr);
         });
         applyColumnVisibility();
+        ensureColumnWidths();
         applyPinnedColumn();
 
         if (empty) {
@@ -1958,24 +2355,257 @@
         }).length));
     }
 
-    function updateSummary() {
-        var gridMeta = document.getElementById("grid-meta");
-        if (selectedRow) {
-            setText("grid-meta", "Apuração " + selectedRow.nuapuracao + " selecionada.");
-        } else if (filteredRows.length === 0) {
-            setText("grid-meta", "Nenhum resultado para os filtros atuais.");
-        } else {
-            setText("grid-meta", "Uma linha por apuração");
+    function gridClickDragged(event) {
+        if (!gridPointer) {
+            return false;
         }
+        return Math.abs(event.clientX - gridPointer.x) > 4 || Math.abs(event.clientY - gridPointer.y) > 4;
+    }
+
+    function gridCellFromEvent(event) {
+        var node = event.target;
+        while (node && node !== event.currentTarget) {
+            if (node.getAttribute && node.getAttribute("data-column")) {
+                return node;
+            }
+            node = node.parentNode;
+        }
+        return null;
+    }
+
+    function markActiveCell() {
+        var current = document.querySelectorAll("#grid-apuracoes tbody td.is-active");
+        Array.prototype.forEach.call(current, function (cell) {
+            cell.classList.remove("is-active");
+        });
+        if (!activeCell) {
+            return;
+        }
+        var row = document.querySelector("#grid-apuracoes tbody tr.is-selected");
+        if (!row) {
+            return;
+        }
+        var cell = row.querySelector('td[data-column="' + activeCell.columnId + '"]');
+        if (cell) {
+            cell.classList.add("is-active");
+        }
+    }
+
+    function bindGridCellCopy() {
+        document.addEventListener("keydown", function (event) {
+            var copyKey = event.code === "KeyC" || event.key === "c" || event.key === "C";
+            if (!copyKey || !(event.ctrlKey || event.metaKey) || event.altKey) {
+                return;
+            }
+            if (isTypingTarget(event.target) || hasTextSelection()) {
+                return;
+            }
+            var cell = document.querySelector("#grid-apuracoes tbody td.is-active");
+            if (!cell) {
+                return;
+            }
+            var text = String(cell.textContent || "").trim();
+            if (!text || text === "—") {
+                return;
+            }
+            event.preventDefault();
+            copyTextToClipboard(text).then(function () {
+                setGridCopyStatus("Célula copiada");
+            }).catch(function () {
+                setGridCopyStatus("Não foi possível copiar a célula");
+            });
+        });
+    }
+
+    function isTypingTarget(target) {
+        if (!target || !target.tagName) {
+            return false;
+        }
+        var tag = target.tagName;
+        return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || target.isContentEditable;
+    }
+
+    function hasTextSelection() {
+        var selection = window.getSelection ? window.getSelection() : null;
+        return !!(selection && !selection.isCollapsed && String(selection.toString() || "").trim());
+    }
+
+    function setGridCopyStatus(message) {
+        var status = document.getElementById("grid-copy-status");
+        if (!status) {
+            status = document.createElement("span");
+            status.id = "grid-copy-status";
+            status.className = "visually-hidden";
+            status.setAttribute("aria-live", "polite");
+            status.setAttribute("aria-atomic", "true");
+            document.body.appendChild(status);
+        }
+        status.textContent = message;
+        window.setTimeout(function () {
+            if (status.textContent === message) {
+                status.textContent = "";
+            }
+        }, 2000);
     }
 
     function selectRow(row) {
         selectedRow = row;
         renderGrid();
-        updateSummary();
         document.dispatchEvent(new CustomEvent("facilita-apuracao:selected", {
             detail: row
         }));
+    }
+
+    function requestSelectRow(row, afterSelect) {
+        if (!row) {
+            return;
+        }
+        if (selectedRow && selectedRow.nuapuracao === row.nuapuracao) {
+            if (afterSelect) {
+                afterSelect();
+            }
+            return;
+        }
+        if (editDraftDirty()) {
+            openDiscardDraftDialog(row, afterSelect);
+            return;
+        }
+        selectRow(row);
+        if (afterSelect) {
+            afterSelect();
+        }
+    }
+
+    function editDraftDirty() {
+        if (!editBaseline) {
+            return false;
+        }
+        var dateInput = document.getElementById("edit-dtvenc");
+        var valorInput = document.getElementById("edit-valor");
+        if (!dateInput || !valorInput) {
+            return false;
+        }
+        if (String(dateInput.value || "") !== editBaseline.dtvenc) {
+            return true;
+        }
+        return editValorChanged(String(valorInput.value || "").trim(), {
+            valorRaw: editBaseline.valor,
+            valor: null
+        });
+    }
+
+    function syncEditDraftHint() {
+        var hint = document.getElementById("edit-draft-hint");
+        if (!hint) {
+            return;
+        }
+        hint.hidden = !editDraftDirty();
+    }
+
+    function captureEditBaseline(detail) {
+        editBaseline = detail ? {
+            nuapuracao: detail.nuapuracao,
+            dtvenc: detail.dtvenc || "",
+            valor: formatValorForInput(detail)
+        } : null;
+        syncEditDraftHint();
+    }
+
+    function setAttachmentStatus(message) {
+        var status = document.getElementById("attachment-status");
+        if (!status) {
+            return;
+        }
+        status.hidden = !message;
+        status.textContent = message || "";
+    }
+
+    function focusEditDraftField() {
+        var valorDirty = editBaseline && editValorChanged(getInputValue("edit-valor"), {
+            valorRaw: editBaseline.valor,
+            valor: null
+        });
+        var field = document.getElementById(valorDirty ? "edit-valor" : "edit-dtvenc");
+        if (field) {
+            field.focus();
+        }
+    }
+
+    function openDiscardDraftDialog(row, afterSelect) {
+        var dialog = document.getElementById("discard-draft-dialog");
+        var cancel = document.getElementById("discard-draft-cancel");
+        if (!dialog || !cancel) {
+            selectRow(row);
+            if (afterSelect) {
+                afterSelect();
+            }
+            return;
+        }
+        pendingRowSelection = {
+            row: row,
+            afterSelect: afterSelect || null
+        };
+        dialog.hidden = false;
+        cancel.focus();
+    }
+
+    function closeDiscardDraftDialog(confirmed) {
+        var dialog = document.getElementById("discard-draft-dialog");
+        var pending = pendingRowSelection;
+        pendingRowSelection = null;
+        if (dialog) {
+            dialog.hidden = true;
+        }
+        if (!pending) {
+            return;
+        }
+        if (confirmed) {
+            selectRow(pending.row);
+            if (pending.afterSelect) {
+                pending.afterSelect();
+            }
+            return;
+        }
+        focusEditDraftField();
+    }
+
+    function bindDiscardDraftDialog() {
+        var dialog = document.getElementById("discard-draft-dialog");
+        var cancel = document.getElementById("discard-draft-cancel");
+        var confirm = document.getElementById("discard-draft-confirm");
+        if (!dialog || !cancel || !confirm) {
+            return;
+        }
+        cancel.addEventListener("click", function () {
+            closeDiscardDraftDialog(false);
+        });
+        confirm.addEventListener("click", function () {
+            closeDiscardDraftDialog(true);
+        });
+        dialog.addEventListener("click", function (event) {
+            if (event.target === dialog) {
+                closeDiscardDraftDialog(false);
+            }
+        });
+        dialog.addEventListener("keydown", function (event) {
+            if (event.key === "Escape") {
+                event.preventDefault();
+                closeDiscardDraftDialog(false);
+                return;
+            }
+            if (event.key !== "Tab") {
+                return;
+            }
+            var buttons = [cancel, confirm];
+            var index = buttons.indexOf(document.activeElement);
+            event.preventDefault();
+            if (index < 0) {
+                cancel.focus();
+                return;
+            }
+            var next = event.shiftKey ? (index + buttons.length - 1) % buttons.length : (index + 1) % buttons.length;
+            buttons[next].focus();
+        });
     }
 
     function loadDetail(row) {
@@ -1993,6 +2623,7 @@
         clearAccess();
         setDetailActions(null);
         clearDetailMessage();
+        setAttachmentStatus("");
 
         var base = window.FACILITA_APURACAO_BASE || "";
         var url = base + "/detalhe_payload.jsp?nuapuracao=" + encodeURIComponent(row.nuapuracao);
@@ -2038,6 +2669,9 @@
             empty.hidden = false;
         }
         clearAccess();
+        editBaseline = null;
+        syncEditDraftHint();
+        setAttachmentStatus("");
     }
 
     function clearAccess() {
@@ -2083,6 +2717,7 @@
         renderAccess(detail);
         setInputValue("edit-dtvenc", detail.dtvenc);
         setInputValue("edit-valor", formatValorForInput(detail));
+        captureEditBaseline(detail);
         setText("detail-state", detail.confirmado === "S" ? "Confirmada" : "Pendente");
         setDetailActions(detail);
     }
@@ -2119,30 +2754,77 @@
         body.appendChild(item);
     }
 
+    function copyTextToClipboard(text) {
+        if (!text) {
+            return Promise.reject(new Error("empty"));
+        }
+        if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
+            return navigator.clipboard.writeText(text);
+        }
+        return new Promise(function (resolve, reject) {
+            var textarea = document.createElement("textarea");
+            textarea.value = text;
+            textarea.setAttribute("readonly", "");
+            textarea.style.position = "fixed";
+            textarea.style.left = "-9999px";
+            document.body.appendChild(textarea);
+            textarea.select();
+            try {
+                var ok = document.execCommand("copy");
+                document.body.removeChild(textarea);
+                if (ok) {
+                    resolve();
+                } else {
+                    reject(new Error("copy failed"));
+                }
+            } catch (error) {
+                document.body.removeChild(textarea);
+                reject(error);
+            }
+        });
+    }
+
     function appendSecretItem(body, senha) {
         var item = document.createElement("div");
         var label = document.createElement("span");
         var row = document.createElement("div");
         var value = document.createElement("strong");
         var button = document.createElement("button");
-        var visivel = false;
+        var copyLabel = "Copiar senha";
         item.className = "detail-grid__item";
         label.className = "detail-grid__label";
         row.className = "access-secret";
-        value.className = "detail-grid__value";
+        value.className = "detail-grid__value access-secret__value";
         label.textContent = "Senha";
-        value.textContent = senha ? "••••••••" : "não definido";
+        value.textContent = senha || "não definido";
         button.type = "button";
-        button.className = "btn btn--quiet";
-        button.textContent = "Mostrar";
+        button.className = "btn btn--quiet btn--copy";
         button.hidden = !senha;
-        button.onclick = function () {
-            visivel = !visivel;
-            value.textContent = visivel ? senha : "••••••••";
-            button.textContent = visivel ? "Ocultar" : "Mostrar";
-        };
+        button.setAttribute("aria-label", copyLabel);
+        button.title = copyLabel;
+        button.innerHTML = "<svg aria-hidden=\"true\" class=\"btn--copy__icon\" width=\"14\" height=\"14\" viewBox=\"0 0 16 16\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M5.5 3.5h7a1.5 1.5 0 0 1 1.5 1.5v7a1.5 1.5 0 0 1-1.5 1.5h-7A1.5 1.5 0 0 1 4 12V5a1.5 1.5 0 0 1 1.5-1.5Z\" stroke=\"currentColor\" stroke-width=\"1.25\"/><path d=\"M3 6.5h-.5A1.5 1.5 0 0 1 1 5V2.5A1.5 1.5 0 0 1 2.5 1H5a1.5 1.5 0 0 1 1.5 1.5V3\" stroke=\"currentColor\" stroke-width=\"1.25\"/></svg>";
+        var copyStatus = document.createElement("span");
+        copyStatus.className = "visually-hidden";
+        copyStatus.setAttribute("aria-live", "polite");
+        copyStatus.setAttribute("aria-atomic", "true");
+        button.addEventListener("click", function () {
+            copyTextToClipboard(senha).then(function () {
+                button.setAttribute("aria-label", "Senha copiada");
+                button.title = "Senha copiada";
+                copyStatus.textContent = "Senha copiada";
+                window.setTimeout(function () {
+                    button.setAttribute("aria-label", copyLabel);
+                    button.title = copyLabel;
+                    copyStatus.textContent = "";
+                }, 2000);
+            }).catch(function (error) {
+                copyStatus.textContent = "Não foi possível copiar a senha";
+                console.warn("[facilita-apuracao] copiar senha", error);
+            });
+        });
         row.appendChild(value);
         row.appendChild(button);
+        row.appendChild(copyStatus);
         item.appendChild(label);
         item.appendChild(row);
         body.appendChild(item);
@@ -2188,6 +2870,18 @@
         if (upload) {
             upload.disabled = !detail;
         }
+        keepDueDateEditable(detail);
+    }
+
+    function keepDueDateEditable(detail) {
+        var dueDate = document.getElementById("edit-dtvenc");
+        if (!dueDate || !detail) {
+            return;
+        }
+        dueDate.disabled = false;
+        dueDate.readOnly = false;
+        dueDate.removeAttribute("min");
+        dueDate.removeAttribute("max");
     }
 
     function resolveFacadeServiceName(operation) {
@@ -2440,6 +3134,7 @@
         if (valorChanged) {
             payload.VALOR = valorParsed.empty ? "" : valorParsed.text;
         }
+        /* DTVENC segue em qualquer estado: Pendente, Confirmada, auditoria, faturamento ou e-mail. */
         if (date) {
             payload.DTVENC = date;
         }
@@ -2546,7 +3241,9 @@
                 fileInput.value = "";
             }
             clearDetailMessage();
-            showSuccessDialog("Arquivo associado à apuração.", "Anexo enviado");
+            syncPossuiAnexoLocal("S");
+            gravarPossuiAnexo("S");
+            setAttachmentStatus("Anexo enviado.");
         }).catch(function (error) {
             showActionError(error, "Não foi possível associar o anexo.");
         }).finally(function () {
@@ -3364,16 +4061,60 @@
         return String(detail.valor);
     }
 
+    function pasteValor(event) {
+        var clipboard = event.clipboardData || window.clipboardData;
+        var text = clipboard ? clipboard.getData("text") : "";
+        if (!String(text || "").trim()) {
+            return;
+        }
+        var parsed = parseEditValorInput(extractValorColado(text));
+        event.preventDefault();
+        if (parsed.empty) {
+            event.target.value = "";
+        } else if (parsed.invalid || parsed.value < 0) {
+            setDetailMessage("Informe um valor maior ou igual a zero.");
+            return;
+        } else {
+            clearDetailMessage();
+            event.target.value = parsed.text;
+        }
+        event.target.dispatchEvent(new Event("input", { bubbles: true }));
+        event.target.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+
+    function extractValorColado(text) {
+        var source = String(text || "").replace(/\u00a0/g, " ");
+        var brasileiro = source.match(/\d{1,3}(?:\.\d{3})+,\d{1,2}|\d+,\d{1,2}/);
+        if (brasileiro) {
+            return brasileiro[0];
+        }
+        var simples = source.match(/\d+(?:\.\d+)?/);
+        return simples ? simples[0] : source;
+    }
+
     function parseEditValorInput(valueText) {
-        var normalized = String(valueText || "").trim().replace(",", ".");
-        if (normalized === "") {
+        var raw = String(valueText || "").replace(/\s/g, "").replace(/R\$/gi, "");
+        if (!/\d/.test(raw)) {
             return { empty: true };
+        }
+        var normalized = raw;
+        var lastComma = normalized.lastIndexOf(",");
+        var lastDot = normalized.lastIndexOf(".");
+        if (lastComma >= 0 && lastDot >= 0) {
+            normalized = lastComma > lastDot
+                ? normalized.replace(/\./g, "").replace(",", ".")
+                : normalized.replace(/,/g, "");
+        } else if (lastComma >= 0) {
+            normalized = normalized.replace(",", ".");
+        }
+        if (normalized.charAt(normalized.length - 1) === ".") {
+            normalized = normalized.slice(0, -1);
         }
         var value = Number(normalized);
         if (!isFinite(value)) {
             return { empty: false, invalid: true };
         }
-        return { empty: false, invalid: false, value: value, text: normalized };
+        return { empty: false, invalid: false, value: value, text: value.toFixed(2) };
     }
 
     function editValorChanged(currentText, detail) {
@@ -3440,6 +4181,8 @@
             NOMEOPERADORA: "nomeOperadora",
             NOMECONTAOPERADORA: "nomeContaOperadora",
             APELIDOVEND: "apelidoVend",
+            CONSULTOR: "consultor",
+            CONSULTORREL: "consultorRel",
             CLIENTE: "cliente",
             OPERADORA: "operadora",
             TITULARIDADE: "titularidade",
@@ -3614,7 +4357,9 @@
                 checkbox.checked = visibleColumns[checkbox.getAttribute("data-column")];
             });
             syncSelectAll();
+            syncColumnPickerOrder();
             placePinnedColumn();
+            ensureColumnWidths();
         } catch (error) {
             console.warn("[facilita-apuracao] preferências de colunas indisponíveis");
         }

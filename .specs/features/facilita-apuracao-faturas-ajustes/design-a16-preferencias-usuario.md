@@ -65,6 +65,7 @@ Um único documento por usuário. Alinhado ao `buildUserPreferencesSnapshot()` a
     "columns": { "nuapuracao": true, "valor": true },
     "pinned": ["nuapuracao"],
     "order": ["nuapuracao", "numcontrato"],
+    "widths": { "nuapuracao": 120, "numcontrato": 180 },
     "sortKey": "numcontrato",
     "sortDirection": 1,
     "manualColumnSort": false
@@ -78,7 +79,7 @@ Um único documento por usuário. Alinhado ao `buildUserPreferencesSnapshot()` a
 | `savedAt` | ISO-8601 UTC; preenchido no **cliente** ao montar o snapshot; útil para cache e debug. |
 | `server` | Últimos `P_*` **efetivos** (toolbar + sessão). Gravados quando o usuário **Aplica** ou quando a UI diverge do JSON ao sincronizar com o servidor. |
 | `client` | Filtros locais da grade (não alteram SQL do `dados.jsp`). |
-| `grid` | Colunas, ordem, pin, paginação, ordenação. |
+| `grid` | Colunas visíveis, ordem, pin, larguras (`widths`), paginação, ordenação. |
 
 **Validação no gadget (antes do save):** JSON parseável; `version === 1`; tamanho máximo acordado; não confiar em validação só no cliente para segurança entre usuários — o CRUD com `CODUSU` em expressão + `key` do usuário logado impede gravar linha de outro.
 

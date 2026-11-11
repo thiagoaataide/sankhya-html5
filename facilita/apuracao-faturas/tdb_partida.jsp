@@ -101,6 +101,8 @@
                         <option value="NOMEOPERADORA">Operadora</option>
                         <option value="NOMECONTAOPERADORA">Nome da conta na operadora</option>
                         <option value="APELIDOVEND">Consultor relacionamento</option>
+                        <option value="CONSULTOR">Consultor de Autoriza&ccedil;&atilde;o</option>
+                        <option value="CONSULTORREL">Consultor de Relacionamento</option>
                         <option value="CLIENTE">C&oacute;d. cliente</option>
                         <option value="OPERADORA">C&oacute;d. operadora</option>
                         <option value="TITULARIDADE">C&oacute;d. titular</option>
@@ -145,10 +147,11 @@
                                     </label>
                                     <label class="filter-control" for="edit-valor">
                                         <span>Valor</span>
-                                        <input type="number" id="edit-valor" name="valor" min="0" step="0.01" inputmode="decimal" autocomplete="off">
+                                        <input type="number" id="edit-valor" name="valor" lang="pt-BR" min="0" step="0.01" inputmode="decimal" autocomplete="off">
                                     </label>
                                     <button type="submit" class="btn btn--quiet" id="btn-save-edit" disabled>Salvar altera&ccedil;&otilde;es</button>
                                 </div>
+                                <p id="edit-draft-hint" class="edit-draft-hint" role="status" aria-live="polite" hidden>Altera&ccedil;&otilde;es n&atilde;o salvas</p>
                             </fieldset>
                         </form>
                     </div>
@@ -174,6 +177,7 @@
                                 </label>
                                 <button type="button" class="btn btn--quiet" id="btn-upload-attachment" disabled>Enviar anexo</button>
                             </div>
+                            <p id="attachment-status" class="attachment-status" role="status" aria-live="polite" hidden></p>
                         </fieldset>
                     </div>
                     <div class="detail-panel__zone detail-panel__zone--access">
@@ -198,7 +202,6 @@
                     <summary>Colunas</summary>
                     <div class="column-picker__menu" id="column-picker-menu" aria-label="Escolher colunas vis&iacute;veis"></div>
                 </details>
-                <span class="muted" id="grid-meta">Uma linha por apura&ccedil;&atilde;o</span>
             </div>
         </div>
         <div class="pagination-bar" id="pagination-bar" aria-label="Pagina&ccedil;&atilde;o da lista">
@@ -243,6 +246,16 @@
         <h2 id="error-dialog-title">Erro</h2>
         <p id="error-dialog-message"></p>
         <button type="button" class="btn btn--accent" id="error-dialog-close">OK</button>
+    </div>
+</div>
+<div id="discard-draft-dialog" class="notice-dialog" hidden>
+    <div class="notice-dialog__panel" role="alertdialog" aria-modal="true" aria-labelledby="discard-draft-title" aria-describedby="discard-draft-message">
+        <h2 id="discard-draft-title">Altera&ccedil;&otilde;es n&atilde;o salvas</h2>
+        <p id="discard-draft-message">Valor e vencimento ainda n&atilde;o foram salvos. Trocar de apura&ccedil;&atilde;o descarta essas altera&ccedil;&otilde;es.</p>
+        <div class="notice-dialog__actions">
+            <button type="button" class="btn btn--quiet" id="discard-draft-cancel">Continuar editando</button>
+            <button type="button" class="btn btn--accent" id="discard-draft-confirm">Descartar e trocar</button>
+        </div>
     </div>
 </div>
 <div id="success-dialog" class="notice-dialog" hidden>

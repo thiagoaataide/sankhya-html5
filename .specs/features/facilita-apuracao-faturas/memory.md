@@ -62,7 +62,9 @@ Formulário **Dados editáveis** na faixa de detalhe → **Salvar alterações**
 | Informar ao menos valor ou vencimento | Java e `updateSelectedApuracao` em `script.js` |
 | Exibir zero no campo | `valorRaw` em `readDetail` + `formatValorForInput`; não usar truthiness em `0` |
 | Payload | `VALOR` enviado só se o campo mudou; vazio explícito (`""`) grava **nulo** no banco (botão 77 atualizado) |
-| Valor nulo | Permitido ao limpar o campo e salvar; distinto de `0,00` |
+| Valor nulo | Limpar o valor e salvar grava **nulo**, mesmo com o vencimento alterado no mesmo salvamento. Texto sem dígito (campo apagado) não gera "Valor invalido." Distinto de `0,00` |
+| Colar valor | `Ctrl+V` lê o texto da fatura antes do campo numérico. `1.574,33` e `R$ 1.574,33` viram `1574.33`. O ponto é milhar e a vírgula é decimal quando os dois aparecem |
+| Vencimento em qualquer estado | `DTVENC` grava com a apuração Pendente, Confirmada, com auditoria finalizada, faturamento liberado ou e-mail enviado. O gadget e `AtualizarValorVencimento` não consultam esses campos para recusar a data (2026-11-10) |
 
 **Histórico do bug (A9):** o HTML5 tratava `0` como vazio (`detail.valor ? …`,
 `setInputValue` com `value \|\| ""`) e a validação client-side impedia salvar
@@ -143,7 +145,9 @@ por expressão no dicionário. A linha conta como existente mesmo com `CONF` nul
 prevalecem** sobre o bloco `server` do JSON/`CONF`. O remoto restaura sobretudo
 `grid` e `client`; se o JSON tiver `server` diferente da tela, o gadget **grava**
 o JSON atualizado. **Aplicar** recarrega a grade via `dados.jsp` (sem reload da
-moldura). Debounce ~1,5 s + flush ao sair. Ver `design-a16-preferencias-usuario.md`.
+moldura). Debounce ~1,5 s + flush ao sair. O bloco `grid` guarda colunas
+visíveis (`columns`), ordem (`order`), pin (`pinned`) e larguras (`widths`,
+px por coluna). Ver `design-a16-preferencias-usuario.md`.
 
 ## Parâmetros da consulta (servidor)
 
@@ -174,3 +178,32 @@ Cada pedido do solicitante entra como task **A*n*** nesse `tasks.md`.
 | **Deep link `NUAPURACAO`** | Inalterado (prompt/`#app/…`); não misturar com o fluxo do visualizador. |
 
 Referência UAT: apuração `195212725` — visualizador com boleto em tela; republicar `apuracao-faturas.zip` antes de testar.
+
+## Estado da ficha (SPA, 2026-11-10)
+
+A ficha da apuração selecionada permanece na tela. Anexo e dados editáveis são rascunhos independentes. O baseline do rascunho fica em `editBaseline` (`nuapuracao`, `dtvenc`, `valor`) e só muda quando o detalhe é carregado de novo.
+
+| Ação | O que acontece |
+| --- | --- |
+| **Enviar anexo** | Associa o arquivo, marca `possuiAnexo` na linha e avisa "Anexo enviado." no próprio bloco. Não recarrega a ficha e não chama `reloadAfterAction`. Vencimento e valor digitados permanecem. |
+| **Rascunho** | Enquanto vencimento ou valor diferem do baseline, a ficha mostra "Alterações não salvas". O rascunho dura até **Salvar alterações** ou até trocar de apuração. Clicar de novo na mesma linha não recarrega o detalhe. |
+| **Trocar de apuração** | Se o rascunho está sujo, o diálogo pede confirmação. **Continuar editando** devolve o foco ao campo. **Descartar e trocar** carrega a outra apuração. Escape e clique fora cancelam. |
+| **Salvar alterações** | Continua gravando vencimento e valor e, no sucesso, atualiza a lista. Aí o baseline passa a ser o valor do servidor. |
+| **Sair da página** | `beforeunload` avisa se ainda há rascunho. |
+
+O diálogo de sucesso que recarrega a ficha fica só para operações que de fato gravaram valor, vencimento, confirmação ou nova auditoria.
+
+## Consultores na grade (2026-11-10)
+
+Duas colunas novas, apelido em `TGFVEN`, sem esconder a apuração quando o vendedor não existe (`LEFT JOIN`).
+
+| Coluna | Origem |
+| --- | --- |
+| Consultor de Autorização (`consultor`) | `TGFVEN.APELIDO` em `CTR.BH_CODASSESSOR` |
+| Consultor de Relacionamento (`consultorRel`) | `TGFVEN.APELIDO` em `CTR.AD_CODASSESSOR` |
+
+A coluna antiga **Consultor** (`apelidoVend`) continua em `CTR.CODVEND` e não é essas duas.
+
+## Célula da grade (2026-11-11)
+
+Clicar uma célula seleciona a apuração e deixa essa célula em evidência (borda azul). `Ctrl+C` copia o texto visível da célula, no mesmo formato da grade. O atalho não interfere quando o foco está num campo ou quando já há texto selecionado. Arrastar o mouse não troca a linha, para não apagar a seleção nativa no meio do gesto.
