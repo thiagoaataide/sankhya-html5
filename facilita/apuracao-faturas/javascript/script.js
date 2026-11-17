@@ -54,7 +54,7 @@
         { id: "identificador", label: "Identificador", kind: "text", visible: false },
         { id: "nomeOperadora", label: "Operadora", kind: "text", visible: false },
         { id: "nomeTitular", label: "Titular", kind: "text", visible: false },
-        { id: "cgcTitular", label: "CNPJ titular", kind: "text", visible: false },
+        { id: "cgcTitular", label: "CNPJ titular", kind: "cpfCnpj", visible: false },
         { id: "apelidoVend", label: "Consultor", kind: "text", visible: false },
         { id: "nunota", label: "Faturamento", kind: "text", visible: false },
         { id: "sequenciacon", label: "Sequência contratual", kind: "text", visible: false },
@@ -77,9 +77,9 @@
         { id: "cfgVlrref", label: "Valor ref. configuração", kind: "money", visible: false },
         { id: "cfgVlrfixo", label: "Valor fixo", kind: "money", visible: false },
         { id: "acessoLogin", label: "Login", kind: "text", visible: false },
-        { id: "acessoCpf", label: "CPF acesso", kind: "text", visible: false },
+        { id: "acessoCpf", label: "CPF acesso", kind: "cpf", visible: false },
         { id: "acessoEmail", label: "E-mail acesso", kind: "text", visible: false },
-        { id: "acessoCnpj", label: "CNPJ acesso", kind: "text", visible: false },
+        { id: "acessoCnpj", label: "CNPJ acesso", kind: "cnpj", visible: false },
         { id: "acessoLinha", label: "Linha gestora", kind: "text", visible: false }
     ];
     var visibleColumns = {};
@@ -3132,7 +3132,12 @@
             NUAPURACAO: String(selectedDetail.nuapuracao)
         };
         if (valorChanged) {
-            payload.VALOR = valorParsed.empty ? "" : valorParsed.text;
+            if (valorParsed.empty) {
+                payload.VALOR = "";
+                payload.LIMPARVALOR = "S";
+            } else {
+                payload.VALOR = valorParsed.text;
+            }
         }
         /* DTVENC segue em qualquer estado: Pendente, Confirmada, auditoria, faturamento ou e-mail. */
         if (date) {
@@ -4295,6 +4300,46 @@
         return null;
     }
 
+    function documentDigits(text) {
+        return String(text || "").replace(/\D/g, "");
+    }
+
+    function formatCpf(text) {
+        var digits = documentDigits(text);
+        if (!digits) {
+            return "";
+        }
+        if (digits.length !== 11) {
+            return String(text || "").trim() || "—";
+        }
+        return digits.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, "$1.$2.$3-$4");
+    }
+
+    function formatCnpj(text) {
+        var digits = documentDigits(text);
+        if (!digits) {
+            return "";
+        }
+        if (digits.length !== 14) {
+            return String(text || "").trim() || "—";
+        }
+        return digits.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5");
+    }
+
+    function formatCpfCnpj(text) {
+        var digits = documentDigits(text);
+        if (!digits) {
+            return "—";
+        }
+        if (digits.length === 11) {
+            return formatCpf(digits);
+        }
+        if (digits.length === 14) {
+            return formatCnpj(digits);
+        }
+        return String(text || "").trim() || "—";
+    }
+
     function formatColumnValue(column, row) {
         var value = row[column.id];
         if (column.kind === "date") {
@@ -4309,6 +4354,15 @@
         if (column.kind === "estado") {
             return value === "S" ? "Confirmada" : "Pendente";
         }
+        if (column.kind === "cpf") {
+            return formatCpf(value) || "—";
+        }
+        if (column.kind === "cnpj") {
+            return formatCnpj(value) || "—";
+        }
+        if (column.kind === "cpfCnpj") {
+            return formatCpfCnpj(value);
+        }
         return value || "—";
     }
 
@@ -4319,6 +4373,9 @@
         }
         if (column && column.kind === "date") {
             return String(row[key] || "");
+        }
+        if (column && (column.kind === "cpf" || column.kind === "cnpj" || column.kind === "cpfCnpj")) {
+            return documentDigits(row[key]);
         }
         if (key === "nuapuracao" || key === "codconta" || key === "numcontrato" || key === "nunota") {
             var numeric = parseInt(String(row[key] || "0"), 10);

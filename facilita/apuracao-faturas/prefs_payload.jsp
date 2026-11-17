@@ -46,7 +46,11 @@
 <snk:query var="prefExists">
     SELECT TO_CHAR(P.CODUSU) AS CODUSU
       FROM AD_APURACAOCONF P
-     WHERE P.CODUSU = ${CODUSU_LOG}
+     CROSS JOIN (
+           SELECT COALESCE(NULLIF(sankhya.STP_GET_CODUSULOGADO(), 0), ${CODUSU_LOG}) AS CODUSU_LOGADO
+             FROM DUAL
+           ) LOGADO
+     WHERE P.CODUSU = LOGADO.CODUSU_LOGADO
 </snk:query>
 <%
         java.util.List existing = (java.util.List) pageContext.getAttribute("prefExists");
@@ -76,7 +80,11 @@
     SELECT P.CONF,
            TO_CHAR(P.DHALTER, 'DD/MM/YYYY HH24:MI:SS') AS DHALTER_FMT
       FROM AD_APURACAOCONF P
-     WHERE P.CODUSU = ${CODUSU_LOG}
+     CROSS JOIN (
+           SELECT COALESCE(NULLIF(sankhya.STP_GET_CODUSULOGADO(), 0), ${CODUSU_LOG}) AS CODUSU_LOGADO
+             FROM DUAL
+           ) LOGADO
+     WHERE P.CODUSU = LOGADO.CODUSU_LOGADO
 </snk:query>
 <%
             java.util.List rows = (java.util.List) pageContext.getAttribute("prefRows");

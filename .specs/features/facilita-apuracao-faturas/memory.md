@@ -62,7 +62,7 @@ Formulário **Dados editáveis** na faixa de detalhe → **Salvar alterações**
 | Informar ao menos valor ou vencimento | Java e `updateSelectedApuracao` em `script.js` |
 | Exibir zero no campo | `valorRaw` em `readDetail` + `formatValorForInput`; não usar truthiness em `0` |
 | Payload | `VALOR` enviado só se o campo mudou; vazio explícito (`""`) grava **nulo** no banco (botão 77 atualizado) |
-| Valor nulo | Limpar o valor e salvar grava **nulo**, mesmo com o vencimento alterado no mesmo salvamento. Texto sem dígito (campo apagado) não gera "Valor invalido." Distinto de `0,00` |
+| Valor nulo | Limpar o valor e salvar grava **nulo** em `BH_FACAPU.VALOR` via `prepareToUpdate().set("VALOR", null)` em `AtualizarValorVencimento` (republicar jar `GET_FACILITA`). O gadget envia `VALOR=""` e `LIMPARVALOR=S`. **Não** usar `ctx.getQuery().update()` no botão 77 — a rotina é Java pura, sem SQL no cadastro do botão; isso gera "Parâmetro IN ou OUT ausente do índice:: 1". Texto sem dígito não gera "Valor invalido." Distinto de `0,00` |
 | Colar valor | `Ctrl+V` lê o texto da fatura antes do campo numérico. `1.574,33` e `R$ 1.574,33` viram `1574.33`. O ponto é milhar e a vírgula é decimal quando os dois aparecem |
 | Vencimento em qualquer estado | `DTVENC` grava com a apuração Pendente, Confirmada, com auditoria finalizada, faturamento liberado ou e-mail enviado. O gadget e `AtualizarValorVencimento` não consultam esses campos para recusar a data (2026-11-10) |
 
